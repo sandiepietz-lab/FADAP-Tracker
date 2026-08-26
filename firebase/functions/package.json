@@ -1,0 +1,13 @@
+{
+  "name": "fadap-hours-functions",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-functions": "7.3.2",
+    "googleapis": "175.0.0"
+  }
+}

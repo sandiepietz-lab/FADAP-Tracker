@@ -12642,6 +12642,9 @@ Error generating stack: ` +
     `spietzfadap@gmail.com`,
     `tspillersfadap@gmail.com`,
     `mitchellpietz@gmail.com`,
+    `arouttenfadap@gmail.com`,
+    `peggerfadap@gmail.com`,
+    `gwrennfadap@gmail.com`,
   ],
   S = `fadap-google-active-v1`,
   C = {
@@ -12658,7 +12661,7 @@ Error generating stack: ` +
     { name: `FADAP Team`, icon: `●●`, className: `fadap-team` },
     { name: `Treatment Center`, icon: `+`, className: `treatment-center` },
     {
-      name: `Flight Attendant Support`,
+      name: `FA/Co-Worker`,
       icon: `✈`,
       className: `flight-attendant`,
     },
@@ -12693,35 +12696,50 @@ Error generating stack: ` +
       `Other`,
     ],
     "Treatment Center": [
+      `New Client Outreach Request`,
       `Client Intake`,
-      `Client Update`,
+      `Client Update / Weekly Update`,
+      `FMLA / Medical / Paperwork`,
       `Client Discharge`,
-      `Other`,
+      `Client Issues`,
     ],
     "Inflight Base": [
+      `Lounge Visit`,
       `Talk to Leadership`,
       `Reach Out Request`,
-      `Lounge Visit`,
       `Checking on Materials`,
       `Other`,
     ],
     "FADAP Team": [
       `FADAP Leadership`,
       `FADAP Member`,
-      `24 Hour Support`,
+      `24 Hour Backup`,
       `WOC Review`,
       `WOC Debrief`,
       `Team Meeting`,
       `SWA Quarterly Meeting`,
     ],
-    Union: [`Timesheets`, `Reach Out Request`, `Other`],
-    "Flight Attendant Support": [
-      `General Questions`,
-      `Reach Out Request`,
-      `Jumpseat Talk`,
-      `Request to Join FADAP`,
-      `Request to Mentor`,
+    Admin: [
+      `Media / Communications`,
+      `Training / Education`,
+      `Committee Work`,
       `Other`,
+    ],
+    Union: [
+      `Timesheets`,
+      `Grievances`,
+      `Client/Case Info`,
+      `Reach Out Request`,
+      `Other`,
+    ],
+    "FA/Co-Worker": [
+      `Self Referral`,
+      `Family Member Needs Help`,
+      `Reach Out Request`,
+      `Medication Question`,
+      `General Question`,
+      `Mentor Request`,
+      `Jumpseat Talk`,
     ],
   },
   hotlineFlightAttendantTypes = [
@@ -12730,6 +12748,58 @@ Error generating stack: ` +
     `Reach Out Request`,
     `Medication Question`,
     `General Question`,
+    `Mentor Request`,
+  ],
+  treatmentCenterDischargeTypes = [
+    `Update on Discharge Date`,
+    `Discharge Call Request`,
+    `Discharge Call`,
+  ],
+  treatmentCenterClientIssueTypes = [`AMA`, `Other`],
+  hotlineUnionTypes = [`Grievances`, `Client/Case Info`, `Reach Out Request`],
+  inpatientTreatmentCenters = [
+    `Ashley Treatment`,
+    `Alena Lodge / Highwatch`,
+    `Avery Lane for Women`,
+    `Breathe Life Healing Center`,
+    `Brighton Recovery`,
+    `California Behavioral Health`,
+    `Casa Palmera`,
+    `Chroma Wellness Center`,
+    `Cumberland Heights`,
+    `FHE Network`,
+    `High Watch Recovery`,
+    `La Fuente Treatment`,
+    `La Hacienda`,
+    `New Directions for Women`,
+    `Meadows Seasons`,
+    `Meadows Gentle Path`,
+    `Meadows Willows House`,
+    `Origins`,
+    `Recovery Ways`,
+    `Rosecrance Health Network`,
+    `See Purpose Treatment`,
+  ],
+  iopTreatmentPrograms = [
+    `Alpine Recovery`,
+    `Banyan Treatment`,
+    `Breathe Life Healing Center`,
+    `Breakthrough Recovery`,
+    `Colonial Clinic`,
+    `Brighton Recovery`,
+    `Coral Bay Recovery`,
+    `Denver Woman’s Recovery`,
+    `Discovery Behavioral Health`,
+    `Fellowship Hall`,
+    `La Hacienda Treatment`,
+    `Meadows Treatment`,
+    `NorthStar Transitions`,
+    `Omega Recovery`,
+    `Wellness Partners`,
+    `Valley Recovery Center`,
+    `Rosecrance Health Network`,
+    `Recovery Ways`,
+    `Other`,
   ],
   contactMethods = [`Call`, `Text`, `Email`, `In-person`],
   contactMethodsFor = (e) =>
@@ -12755,7 +12825,8 @@ Error generating stack: ` +
       e === `FADAP Team` &&
       (t === `Team Meeting` || t === `SWA Quarterly Meeting`)
     ) &&
-    !(e === `Flight Attendant Support` && t === `Jumpseat Talk`) &&
+    !(e === `Union` && t === `Timesheets`) &&
+    !(e === `FA/Co-Worker` && t === `Jumpseat Talk`) &&
     !(
       e === `Inflight Base` &&
       (t === `Lounge Visit` || t === `Checking on Materials`)
@@ -12777,7 +12848,72 @@ Error generating stack: ` +
       : r
         ? `${r}h ${i}m`
         : `${i}m`;
-  };
+  },
+  addCalendarDays = (e, t) => {
+    let [n, r, i] = e.split(`-`).map(Number),
+      a = new Date(Date.UTC(n, r - 1, i + t));
+    return `${a.getUTCFullYear()}-${String(a.getUTCMonth() + 1).padStart(2, `0`)}-${String(a.getUTCDate()).padStart(2, `0`)}`;
+  },
+  centralDateTime = (e, t, n) => {
+    let [r, i, a] = e.split(`-`).map(Number),
+      guess = Date.UTC(r, i - 1, a, t, n),
+      formatter = new Intl.DateTimeFormat(`en-US`, {
+        timeZone: `America/Chicago`,
+        year: `numeric`,
+        month: `2-digit`,
+        day: `2-digit`,
+        hour: `2-digit`,
+        minute: `2-digit`,
+        hourCycle: `h23`,
+      }),
+      parts = Object.fromEntries(
+        formatter.formatToParts(new Date(guess)).map((e) => [e.type, e.value]),
+      ),
+      represented = Date.UTC(
+        Number(parts.year),
+        Number(parts.month) - 1,
+        Number(parts.day),
+        Number(parts.hour),
+        Number(parts.minute),
+      );
+    return new Date(guess - (represented - guess)).toISOString();
+  },
+  formatCentralDateTime = (e) =>
+    new Date(e).toLocaleString([], {
+      timeZone: `America/Chicago`,
+      month: `short`,
+      day: `numeric`,
+      year: `numeric`,
+      hour: `numeric`,
+      minute: `2-digit`,
+      timeZoneName: `short`,
+    }),
+  currentCentralInput = () => {
+    let parts = Object.fromEntries(
+      new Intl.DateTimeFormat(`en-US`, {
+        timeZone: `America/Chicago`,
+        year: `numeric`,
+        month: `2-digit`,
+        day: `2-digit`,
+        hour: `2-digit`,
+        minute: `2-digit`,
+        hourCycle: `h23`,
+      })
+        .formatToParts(new Date())
+        .filter((e) => e.type !== `literal`)
+        .map((e) => [e.type, e.value]),
+    );
+    return {
+      date: `${parts.year}-${parts.month}-${parts.day}`,
+      time: `${parts.hour}:${parts.minute}`,
+    };
+  },
+  getOnCallStatus = (e, t = Date.now()) =>
+    t < Date.parse(e.startDateTime)
+      ? `scheduled`
+      : t >= Date.parse(e.endDateTime)
+        ? `completed`
+        : `active`;
 function ae() {
   let [e, t] = (0, b.useState)(null),
     [n, r] = (0, b.useState)(!1),
@@ -12798,16 +12934,43 @@ function ae() {
     [de, fe] = (0, b.useState)(``),
     [manualContactMethod, setManualContactMethod] = (0, b.useState)(``),
     [manualTestPositive, setManualTestPositive] = (0, b.useState)(``),
+    [manualPositiveSubstances, setManualPositiveSubstances] = (0, b.useState)([]),
     [manualSubstances, setManualSubstances] = (0, b.useState)([]),
+    [selectedTestPositive, setSelectedTestPositive] = (0, b.useState)(``),
+    [selectedPositiveSubstances, setSelectedPositiveSubstances] = (0, b.useState)([]),
     [selectedSubstances, setSelectedSubstances] = (0, b.useState)([]),
+    [selectedTreatmentPlan, setSelectedTreatmentPlan] = (0, b.useState)(``),
+    [selectedTreatmentPlanTypes, setSelectedTreatmentPlanTypes] = (0, b.useState)([]),
+    [selectedTreatmentLevel, setSelectedTreatmentLevel] = (0, b.useState)(``),
     [pendingTimer, setPendingTimer] = (0, b.useState)(null),
     [previousCategoryStep, setPreviousCategoryStep] = (0, b.useState)(null),
     [detailParent, setDetailParent] = (0, b.useState)(null),
+    [pendingClientDetail, setPendingClientDetail] = (0, b.useState)(``),
     [categoryNote, setCategoryNote] = (0, b.useState)(``),
     [salesforceCase, setSalesforceCase] = (0, b.useState)(``),
     [categoryHours, setCategoryHours] = (0, b.useState)(0),
     [categoryMinutes, setCategoryMinutes] = (0, b.useState)(15),
     [swipedEntryId, setSwipedEntryId] = (0, b.useState)(null),
+    [historyPeriod, setHistoryPeriod] = (0, b.useState)(`currentMonth`),
+    [dashboardRange, setDashboardRange] = (0, b.useState)(`month`),
+    [dashboardCategory, setDashboardCategory] = (0, b.useState)(null),
+    [historyMonth, setHistoryMonth] = (0, b.useState)(() => {
+      let e = new Date();
+      return `${e.getFullYear()}-${String(e.getMonth() + 1).padStart(2, `0`)}`;
+    }),
+    [onCallSchedules, setOnCallSchedules] = (0, b.useState)([]),
+    [showOnCall, setShowOnCall] = (0, b.useState)(!1),
+    [onCallType, setOnCallType] = (0, b.useState)(`WOC`),
+    [onCallStartDate, setOnCallStartDate] = (0, b.useState)(() =>
+      new Date().toISOString().slice(0, 10),
+    ),
+    [onCallEndDate, setOnCallEndDate] = (0, b.useState)(() =>
+      addCalendarDays(new Date().toISOString().slice(0, 10), 13),
+    ),
+    [editingOnCallId, setEditingOnCallId] = (0, b.useState)(null),
+    [onCallSaving, setOnCallSaving] = (0, b.useState)(!1),
+    [onCallError, setOnCallError] = (0, b.useState)(``),
+    [onCallNow, setOnCallNow] = (0, b.useState)(Date.now()),
     swipeStartX = (0, b.useRef)(null),
     [quickNotes, setQuickNotes] = (0, b.useState)([]),
     [quickNoteText, setQuickNoteText] = (0, b.useState)(``),
@@ -12907,6 +13070,44 @@ function ae() {
         );
     }, [e, o]),
     (0, b.useEffect)(() => {
+      if (!e || !ee.includes(e.email) || !o) {
+        setOnCallSchedules([]);
+        return;
+      }
+      return o.db
+        .collection(`users`)
+        .doc(e.uid)
+        .collection(`onCallSchedules`)
+        .onSnapshot(
+          (e) => {
+            setOnCallSchedules(
+              e.docs
+                .map((e) => e.data())
+                .sort((e, t) => t.startDateTime.localeCompare(e.startDateTime)),
+            );
+          },
+          () => ue(`On-call schedules could not be loaded.`),
+        );
+    }, [e, o]),
+    (0, b.useEffect)(() => {
+      let e = window.setInterval(() => setOnCallNow(Date.now()), 6e4);
+      return () => clearInterval(e);
+    }, []),
+    (0, b.useEffect)(() => {
+      if (!e || !o || !onCallSchedules.length) return;
+      onCallSchedules.forEach((t) => {
+        let status = getOnCallStatus(t, onCallNow);
+        status !== t.status &&
+          o.db
+            .collection(`users`)
+            .doc(e.uid)
+            .collection(`onCallSchedules`)
+            .doc(t.id)
+            .update({ status })
+            .catch(() => ue(`An on-call schedule status could not be updated.`));
+      });
+    }, [e, o, onCallSchedules, onCallNow]),
+    (0, b.useEffect)(() => {
       if (!c || c.canceled) {
         d(0);
         return;
@@ -12941,6 +13142,196 @@ function ae() {
       year: t(new Date(e.getFullYear(), 0, 1)),
     };
   }, [i]);
+  let historyView = (0, b.useMemo)(() => {
+    let now = new Date(),
+      currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1),
+      lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1),
+      yearStart = new Date(now.getFullYear(), 0, 1),
+      start,
+      end,
+      label;
+    if (historyPeriod === `year`) {
+      ((start = yearStart),
+        (end = new Date(now.getFullYear() + 1, 0, 1)),
+        (label = String(now.getFullYear())));
+    } else if (historyPeriod === `lastMonth`) {
+      ((start = lastMonthStart),
+        (end = currentMonthStart),
+        (label = lastMonthStart.toLocaleDateString([], {
+          month: `long`,
+          year: `numeric`,
+        })));
+    } else if (historyPeriod === `pastMonth`) {
+      let [selectedYear, selectedMonth] = historyMonth.split(`-`).map(Number);
+      start = new Date(selectedYear, selectedMonth - 1, 1);
+      end = new Date(selectedYear, selectedMonth, 1);
+      label = start.toLocaleDateString([], { month: `long`, year: `numeric` });
+    } else {
+      ((start = currentMonthStart),
+        (end = new Date(now.getFullYear(), now.getMonth() + 1, 1)),
+        (label = currentMonthStart.toLocaleDateString([], {
+          month: `long`,
+          year: `numeric`,
+        })));
+    }
+    let entries = i.filter((e) => {
+        let entryDate = new Date(e.startedAt);
+        return entryDate >= start && entryDate < end;
+      }),
+      total = entries.reduce((e, t) => e + t.duration, 0);
+    return { entries, total, label };
+  }, [i, historyPeriod, historyMonth]);
+  let dashboardView = (0, b.useMemo)(() => {
+    let now = new Date(),
+      start =
+        dashboardRange === `today`
+          ? re(now)
+          : dashboardRange === `week`
+            ? w(now)
+            : dashboardRange === `year`
+              ? new Date(now.getFullYear(), 0, 1)
+              : new Date(now.getFullYear(), now.getMonth(), 1),
+      labels = {
+        today: `Today`,
+        week: `This Week`,
+        month: now.toLocaleDateString([], { month: `long`, year: `numeric` }),
+        year: String(now.getFullYear()),
+      },
+      entries = i.filter((e) => new Date(e.startedAt) >= start),
+      totalSeconds = entries.reduce((e, t) => e + (Number(t.duration) || 0), 0),
+      contactCounts = { Call: 0, Text: 0, Email: 0, "In-person": 0 },
+      categoryNames = [
+        `Hotline`,
+        `Client`,
+        `Treatment Center`,
+        `FADAP Team`,
+        `FA/Co-Worker`,
+        `Inflight Base`,
+        `Union`,
+      ],
+      categories = Object.fromEntries(
+        categoryNames.map((e) => [e, { name: e, seconds: 0, count: 0, entries: [] }]),
+      );
+    entries.forEach((e) => {
+      e.contactMethod && contactCounts[e.contactMethod] !== void 0 &&
+        (contactCounts[e.contactMethod] += 1);
+      let name =
+          e.activity === `Peer` || e.activity === `Flight Attendant Support`
+            ? `FA/Co-Worker`
+            : e.activity,
+        category = categories[name];
+      category &&
+        ((category.seconds += Number(e.duration) || 0),
+        (category.count += 1),
+        category.entries.push(e));
+    });
+    return {
+      entries,
+      totalSeconds,
+      contactCounts,
+      label: labels[dashboardRange],
+      categories: categoryNames.map((e) => categories[e]),
+    };
+  }, [i, dashboardRange]);
+  let onCallTotals = (0, b.useMemo)(() => {
+    let totals = { WOC: 0, Backup: 0, Regional: 0, overall: 0 };
+    onCallSchedules.forEach((e) => {
+      if (getOnCallStatus(e, onCallNow) !== `completed`) return;
+      let hours = Number(e.calculatedDurationHours) || 0;
+      ((totals[e.type] = (totals[e.type] || 0) + hours),
+        (totals.overall += hours));
+    });
+    return totals;
+  }, [onCallSchedules, onCallNow]);
+  function openOnCallSchedule(e = null) {
+    let today = new Date().toISOString().slice(0, 10);
+    (setEditingOnCallId(e?.id || null),
+      setOnCallType(e?.type || `WOC`),
+      setOnCallStartDate(e?.startDate || today),
+      setOnCallEndDate(e?.endDate || addCalendarDays(today, 13)),
+      setOnCallError(``),
+      h(`onCallSchedule`));
+  }
+  async function saveOnCallSchedule() {
+    if (!e || !o || !onCallStartDate) return;
+    let endDate =
+        onCallType === `WOC`
+          ? addCalendarDays(onCallStartDate, 7)
+          : onCallType === `Backup`
+            ? onCallStartDate
+            : onCallEndDate,
+      regionalDays =
+        onCallType === `Regional`
+          ? Math.round(
+              (Date.parse(`${endDate}T00:00:00Z`) -
+                Date.parse(`${onCallStartDate}T00:00:00Z`)) /
+                864e5,
+            ) + 1
+          : 0;
+    if (onCallType === `Regional` && regionalDays !== 14) {
+      setOnCallError(`Regional On-Call must cover exactly 14 calendar days.`);
+      return;
+    }
+    let type = onCallType,
+      startDateTime,
+      endDateTime,
+      calculatedDurationHours;
+    if (type === `WOC`) {
+      ((startDateTime = centralDateTime(onCallStartDate, 10, 0)),
+        (endDateTime = centralDateTime(endDate, 10, 0)),
+        (calculatedDurationHours = 168));
+    } else if (type === `Backup`) {
+      ((startDateTime = centralDateTime(onCallStartDate, 0, 0)),
+        (endDateTime = centralDateTime(onCallStartDate, 23, 59)),
+        (calculatedDurationHours = 24));
+    } else {
+      ((startDateTime = centralDateTime(onCallStartDate, 0, 0)),
+        (endDateTime = centralDateTime(endDate, 23, 59)),
+        (calculatedDurationHours = 336));
+    }
+    setOnCallSaving(!0);
+    setOnCallError(``);
+    try {
+      let id = editingOnCallId || crypto.randomUUID(),
+        existing = onCallSchedules.find((e) => e.id === id);
+      await o.db
+        .collection(`users`)
+        .doc(e.uid)
+        .collection(`onCallSchedules`)
+        .doc(id)
+        .set({
+          id,
+          userId: e.uid,
+          type,
+          startDate: onCallStartDate,
+          endDate,
+          startDateTime,
+          endDateTime,
+          timezone: `America/Chicago`,
+          calculatedDurationHours,
+          status: getOnCallStatus({ startDateTime, endDateTime }),
+          createdAt: existing?.createdAt || new Date().toISOString(),
+        });
+      (h(null), setEditingOnCallId(null), setShowOnCall(!0));
+    } catch {
+      setOnCallError(`The on-call schedule could not be saved.`);
+    } finally {
+      setOnCallSaving(!1);
+    }
+  }
+  async function deleteOnCallSchedule(t) {
+    if (!e || !o || !window.confirm(`Delete this ${t.type} schedule?`)) return;
+    try {
+      await o.db
+        .collection(`users`)
+        .doc(e.uid)
+        .collection(`onCallSchedules`)
+        .doc(t.id)
+        .delete();
+    } catch {
+      ue(`The on-call schedule could not be deleted.`);
+    }
+  }
   async function be(t) {
     if (!e || !o) return !1;
     {
@@ -12951,7 +13342,15 @@ function ae() {
           .doc(e.uid)
           .collection(`entries`)
           .doc(t.id)
-          .set({ ...t, firstName: e.firstName, email: e.email });
+          .set({
+            ...t,
+            activity:
+              t.activity === `FA/Co-Worker`
+                ? `Flight Attendant Support`
+                : t.activity,
+            firstName: e.firstName,
+            email: e.email,
+          });
         return !0;
       } catch {
         ue(`The entry could not be saved. Please try again.`);
@@ -13001,7 +13400,13 @@ function ae() {
     (setDetailParent(null), _(e), h(`detail`));
   }
   function chooseDetail(e, t) {
-    e === `Hotline` &&
+    e === `Client` &&
+    t !== `Initial Contact`
+      ? (setSelectedDetail(t),
+        setPendingClientDetail(t),
+        setSalesforceCase(``),
+        h(`clientCase`))
+      : e === `Hotline` &&
     [`Base Leadership`, `CISM`, `Union`, `Professional Standards`].includes(t)
       ? (setSelectedDetail(t), h(`hotlineCallerReason`))
       : e === `Hotline` && t === `Client`
@@ -13011,11 +13416,26 @@ function ae() {
       : e === `Hotline` && t === `Flight Attendant`
       ? (setSelectedDetail(t), h(`hotlineFlightAttendant`))
       : e === `Client` && t === `Initial Contact`
-      ? (setSelectedDetail(t), setSelectedSubstances([]), h(`testPositive`))
-      : e === `Client` && detailParent === `Hotline`
-      ? Se(e, t, `Call`)
-      : e === `Flight Attendant Support` && t === `Jumpseat Talk`
+      ? (setSelectedDetail(t),
+        setPendingClientDetail(``),
+        setSalesforceCase(``),
+        setSelectedTestPositive(``),
+        setSelectedPositiveSubstances([]),
+        setSelectedSubstances([]),
+        h(`testPositive`))
+      : e === `Inflight Base` && t === `Lounge Visit`
+      ? (() => {
+          let { date, time } = currentCentralInput();
+          (setSelectedDetail(t), me(date), O(time), h(`loungeVisit`));
+        })()
+      : e === `Treatment Center` && t === `Client Discharge`
+      ? (setSelectedDetail(t), h(`treatmentCenterDischarge`))
+      : e === `Treatment Center` && t === `Client Issues`
+      ? (setSelectedDetail(t), h(`treatmentCenterClientIssues`))
+      : e === `FA/Co-Worker` && t === `Jumpseat Talk`
       ? Se(e, t, `In-person`)
+      : e === `Admin`
+      ? Se(e, t)
       : usesContactMethod(e, t)
       ? (setSelectedDetail(t), h(`contactMethod`))
       : Se(
@@ -13026,6 +13446,28 @@ function ae() {
             : void 0,
         );
   }
+  function continueClientFlow(e) {
+    (e === `Initial Contact`
+        ? (setSelectedTestPositive(``),
+          setSelectedPositiveSubstances([]),
+          setSelectedSubstances([]),
+          h(`testPositive`))
+        : e === `Initial Follow-up`
+          ? (setSelectedTreatmentPlan(``),
+            setSelectedTreatmentPlanTypes([]),
+            h(`treatmentPlan`))
+          : e === `Going Into Treatment`
+            ? (setSelectedTreatmentLevel(``), h(`treatmentLevel`))
+          : detailParent === `Hotline`
+            ? Se(`Client`, e, `Call`)
+          : usesContactMethod(`Client`, e)
+            ? h(`contactMethod`)
+            : Se(
+                `Client`,
+                e,
+                e === `Discharge Call` ? `Call` : void 0,
+              ));
+  }
   function Se(e, t, n, r = {}) {
     (setPendingTimer({
       activity: e,
@@ -13035,9 +13477,10 @@ function ae() {
     }),
       setPreviousCategoryStep(m),
       setCategoryNote(finishingQuickNote?.note || ``),
-      setSalesforceCase(finishingQuickNote?.salesforceCase || ``),
+      (!pendingClientDetail || e !== `Client`) &&
+        setSalesforceCase(finishingQuickNote?.salesforceCase || ``),
       setCategoryHours(0),
-      setCategoryMinutes(15),
+      setCategoryMinutes(n === `Text` ? 5 : 15),
       h(`categoryEntry`));
   }
   function goBack() {
@@ -13053,15 +13496,35 @@ function ae() {
       (_(detailParent), setDetailParent(null), h(`detail`));
       return;
     }
+    if (m === `contactMethod` && g === `Client` && pendingClientDetail) {
+      h(`clientCase`);
+      return;
+    }
     let previous = {
       contactMethod: `detail`,
       reachOutRequestType: `detail`,
       hotlineFlightAttendant: `detail`,
       hotlineCallerReason: `detail`,
-      testPositive: `detail`,
-      substances: `testPositive`,
+      treatmentCenterDischarge: `detail`,
+      treatmentCenterClientIssues: `detail`,
+      loungeVisit: `detail`,
+      clientCase: `detail`,
+      testPositive:
+        selectedDetail === `Initial Contact` ? `detail` : `clientCase`,
+      positiveSubstances:
+        selectedTestPositive === `No` ? `substances` : `testPositive`,
+      substances:
+        selectedTestPositive === `Yes` ? `positiveSubstances` : `testPositive`,
+      treatmentPlan: `clientCase`,
+      treatmentPlanTypes: `treatmentPlan`,
+      treatmentLevel: `clientCase`,
+      treatmentCenter: `treatmentLevel`,
+      iopTreatmentProgram: `treatmentLevel`,
       postTimerDetail: `postTimerActivity`,
       postReachOutRequestType: `postTimerDetail`,
+      postHotlineUnion: `postTimerDetail`,
+      postTreatmentCenterDischarge: `postTimerDetail`,
+      postTreatmentCenterClientIssues: `postTimerDetail`,
     }[m];
     previous
       ? h(previous)
@@ -13075,7 +13538,11 @@ function ae() {
       id: crypto.randomUUID(),
       ...pendingTimer,
       comment: categoryNote.trim().slice(0, 200),
-      salesforceCase: salesforceCase.trim().slice(0, 50),
+      ...(pendingTimer.activity === `Admin` ||
+      (pendingTimer.activity === `Union` &&
+        pendingTimer.detail === `Timesheets`)
+        ? {}
+        : { salesforceCase: salesforceCase.trim().slice(0, 50) }),
       startedAt: new Date().toISOString(),
       duration,
     });
@@ -13093,13 +13560,38 @@ function ae() {
       setSalesforceCase(``),
       setCategoryHours(0),
       setCategoryMinutes(15),
+      setPendingClientDetail(``),
       setFinishingQuickNote(null),
       h(null),
       _(null));
     }
   }
+  async function saveLoungeVisit() {
+    if (!pe || !D) return;
+    let [hours, minutes] = D.split(`:`).map(Number),
+      saved = await be({
+        id: crypto.randomUUID(),
+        activity: `Inflight Base`,
+        detail: `Lounge Visit`,
+        contactMethod: `In-person`,
+        startedAt: centralDateTime(pe, hours, minutes),
+        duration: 8 * 60 * 60,
+      });
+    saved && (h(null), _(null));
+  }
   function Ce() {
     c && c.running !== !1 && l({ ...c, accumulatedSeconds: u, running: !1 });
+  }
+  function logStoppedTimer() {
+    if (!c || c.running !== !1 || u <= 0) return;
+    (y({
+      id: crypto.randomUUID(),
+      startedAt: new Date(Date.now() - u * 1e3).toISOString(),
+      duration: u,
+    }),
+      setSelectedDetail(``),
+      oe(``),
+      h(`postTimerActivity`));
   }
   function ke() {
     (l(null), d(0), y(null), h(null), oe(``), p(`timer`));
@@ -13138,8 +13630,14 @@ function ae() {
     (y((t) => ({ ...t, activity: e })), _(e), h(`postTimerDetail`));
   }
   function choosePostTimerDetail(e, t) {
-    e === `Hotline` && t === `FA Reach Out Request`
+    e === `Treatment Center` && t === `Client Discharge`
+      ? (setSelectedDetail(t), h(`postTreatmentCenterDischarge`))
+      : e === `Treatment Center` && t === `Client Issues`
+      ? (setSelectedDetail(t), h(`postTreatmentCenterClientIssues`))
+      : e === `Hotline` && t === `FA Reach Out Request`
       ? (setSelectedDetail(t), h(`postReachOutRequestType`))
+      : e === `Hotline` && t === `Union`
+      ? (setSelectedDetail(t), h(`postHotlineUnion`))
       : (y((n) => ({
           ...n,
           activity: e,
@@ -13153,9 +13651,13 @@ function ae() {
         h(`comment`));
   }
   async function we(e = ae) {
-    v &&
-      (await be({ ...v, comment: e.trim().slice(0, 30) }),
-      y(null),
+    if (!v) return;
+    let saved = await be({ ...v, comment: e.trim().slice(0, 30) });
+    saved &&
+      (y(null),
+      l(null),
+      d(0),
+      setShowStopwatch(!1),
       h(null),
       oe(``));
   }
@@ -13166,7 +13668,7 @@ function ae() {
         id: crypto.randomUUID(),
         activity: T,
         ...(de ? { detail: de } : {}),
-        ...(T === `Flight Attendant Support` && de === `Jumpseat Talk`
+        ...(T === `FA/Co-Worker` && de === `Jumpseat Talk`
           ? { contactMethod: `In-person` }
           : T === `Hotline` ||
         (T === `Client` &&
@@ -13178,9 +13680,12 @@ function ae() {
         ...(T === `Client` && de === `Initial Contact`
           ? {
               testPositive: manualTestPositive,
-              ...(manualTestPositive === `Yes`
-                ? { substances: manualSubstances }
-                : {}),
+              substances:
+                manualTestPositive === `Yes` ||
+                manualSubstances.includes(`Substance Abuse`)
+                  ? manualPositiveSubstances
+                  : [],
+              supportNeeds: manualSubstances,
             }
           : {}),
         comment: ae.trim().slice(0, 30),
@@ -13193,6 +13698,7 @@ function ae() {
       fe(``),
       setManualContactMethod(``),
       setManualTestPositive(``),
+      setManualPositiveSubstances([]),
       setManualSubstances([]),
       ge(0),
       ve(15));
@@ -13222,10 +13728,32 @@ function ae() {
                       (0, x.jsx)(`h1`, { children: `FADAP Hours` }),
                     ],
                   }),
-                  (0, x.jsx)(`button`, {
-                    className: `history-link`,
-                    onClick: () => p(f === `timer` ? `history` : `timer`),
-                    children: f === `timer` ? `History` : `← Back to main`,
+                  (0, x.jsx)(`div`, {
+                    className: `topbar-actions`,
+                    children:
+                      f === `timer`
+                        ? (0, x.jsxs)(x.Fragment, {
+                            children: [
+                              (0, x.jsx)(`button`, {
+                                className: `history-link`,
+                                onClick: () => {
+                                  setDashboardCategory(null);
+                                  p(`dashboard`);
+                                },
+                                children: `Dashboard`,
+                              }),
+                              (0, x.jsx)(`button`, {
+                                className: `history-link`,
+                                onClick: () => p(`history`),
+                                children: `History`,
+                              }),
+                            ],
+                          })
+                        : (0, x.jsx)(`button`, {
+                            className: `history-link`,
+                            onClick: () => p(`timer`),
+                            children: `← Main`,
+                          }),
                   }),
                 ],
               }),
@@ -13243,6 +13771,111 @@ function ae() {
                     onClick: () => o?.auth.signOut(),
                     children: `Sign out`,
                   }),
+                ],
+              }),
+              (0, x.jsxs)(`section`, {
+                className: `on-call-card`,
+                children: [
+                  (0, x.jsxs)(`button`, {
+                    className: `on-call-toggle`,
+                    onClick: () => setShowOnCall((e) => !e),
+                    children: [
+                      (0, x.jsxs)(`div`, {
+                        children: [
+                          (0, x.jsx)(`span`, { children: `On-Call Schedule` }),
+                          (0, x.jsx)(`strong`, {
+                            children: `${onCallTotals.overall} completed hours`,
+                          }),
+                        ],
+                      }),
+                      (0, x.jsx)(`b`, { children: showOnCall ? `−` : `＋` }),
+                    ],
+                  }),
+                  showOnCall &&
+                    (0, x.jsxs)(`div`, {
+                      className: `on-call-content`,
+                      children: [
+                        (0, x.jsxs)(`div`, {
+                          className: `on-call-totals`,
+                          children: [
+                            (0, x.jsxs)(`span`, {
+                              children: [`WOC `, (0, x.jsx)(`b`, { children: `${onCallTotals.WOC}h` })],
+                            }),
+                            (0, x.jsxs)(`span`, {
+                              children: [`Backup `, (0, x.jsx)(`b`, { children: `${onCallTotals.Backup}h` })],
+                            }),
+                            (0, x.jsxs)(`span`, {
+                              children: [`Regional `, (0, x.jsx)(`b`, { children: `${onCallTotals.Regional}h` })],
+                            }),
+                          ],
+                        }),
+                        onCallSchedules.length
+                          ? (0, x.jsx)(`div`, {
+                              className: `on-call-list`,
+                              children: onCallSchedules.map((t) =>
+                                (0, x.jsxs)(
+                                  `article`,
+                                  {
+                                    children: [
+                                      (0, x.jsxs)(`div`, {
+                                        children: [
+                                          (0, x.jsx)(`strong`, {
+                                            children:
+                                              t.type === `Regional`
+                                                ? `2-Week Regional On-Call`
+                                                : t.type === `Backup`
+                                                  ? `24 Hour Backup`
+                                                  : `WOC`,
+                                          }),
+                                          (0, x.jsx)(`span`, {
+                                            className: `on-call-status ${getOnCallStatus(t, onCallNow)}`,
+                                            children: getOnCallStatus(
+                                              t,
+                                              onCallNow,
+                                            ),
+                                          }),
+                                          (0, x.jsx)(`small`, {
+                                            children: `${formatCentralDateTime(t.startDateTime)} – ${formatCentralDateTime(t.endDateTime)}`,
+                                          }),
+                                          (0, x.jsx)(`small`, {
+                                            children: `${t.calculatedDurationHours} scheduled hours`,
+                                          }),
+                                        ],
+                                      }),
+                                      (0, x.jsxs)(`div`, {
+                                        className: `on-call-actions`,
+                                        children: [
+                                          (0, x.jsx)(`button`, {
+                                            onClick: () => openOnCallSchedule(t),
+                                            children: `Edit`,
+                                          }),
+                                          (0, x.jsx)(`button`, {
+                                            onClick: () => deleteOnCallSchedule(t),
+                                            children: `Delete`,
+                                          }),
+                                        ],
+                                      }),
+                                    ],
+                                  },
+                                  t.id,
+                                ),
+                              ),
+                            })
+                          : (0, x.jsx)(`p`, {
+                              className: `on-call-empty`,
+                              children: `No on-call schedules yet.`,
+                            }),
+                        (0, x.jsx)(`button`, {
+                          className: `add-on-call-button`,
+                          onClick: () => openOnCallSchedule(),
+                          children: `＋ Add on-call schedule`,
+                        }),
+                        (0, x.jsx)(`p`, {
+                          className: `on-call-note`,
+                          children: `On-call totals are separate from normal work hours and count only after each scheduled block ends. Times use Central Time.`,
+                        }),
+                      ],
+                    }),
                 ],
               }),
               le &&
@@ -13324,6 +13957,13 @@ function ae() {
                                     onClick: resumeTimer,
                                     children: `▶ Start timer again`,
                                   }),
+                              c.running === !1 &&
+                                (0, x.jsx)(`button`, {
+                                  className: `log-timer-button`,
+                                  onClick: logStoppedTimer,
+                                  disabled: u <= 0,
+                                  children: `Log this entry · ${ie(u, !0)}`,
+                                }),
                               (0, x.jsx)(`button`, {
                                 className: `reset-timer-button`,
                                 onClick: requestTimerReset,
@@ -13344,7 +13984,7 @@ function ae() {
                                         children: `Ready when you are`,
                                       }),
                                       (0, x.jsx)(`h2`, {
-                                        children: `Who are you connecting with?`,
+                                        children: `Connecting with`,
                                       }),
                                     ],
                                   }),
@@ -13373,6 +14013,8 @@ function ae() {
                                           children:
                                             e.name === `Quick Notes`
                                               ? `Save for later`
+                                              : e.name === `FADAP Team`
+                                                ? `Connecting with`
                                               : ne[e.name]
                                                 ? `Choose type`
                                                 : `Start timer`,
@@ -13382,30 +14024,6 @@ function ae() {
                                     e.name,
                                   ),
                                 ),
-                              }),
-                              (0, x.jsxs)(`button`, {
-                                className: `just-timer-button`,
-                                onClick: () =>
-                                  c
-                                    ? setShowStopwatch(!0)
-                                    : startDetailsLaterTimer(),
-                                children: [
-                                  (0, x.jsx)(`span`, { children: `▶` }),
-                                  (0, x.jsxs)(`div`, {
-                                    children: [
-                                      (0, x.jsx)(`strong`, {
-                                        children: c ? `Return to timer` : `Timer`,
-                                      }),
-                                      (0, x.jsx)(`small`, {
-                                        children: c
-                                          ? c.running === !1
-                                            ? `Paused at ${ie(u, !0)}`
-                                            : `Running: ${ie(u, !0)}`
-                                          : `Start, stop, continue, or reset`,
-                                      }),
-                                    ],
-                                  }),
-                                ],
                               }),
                             ],
                           }),
@@ -13455,33 +14073,264 @@ function ae() {
                             }),
                           ],
                         }),
-                      (0, x.jsxs)(`button`, {
-                        className: `manual-button`,
-                        onClick: () => {
-                          (oe(``), h(`manual`));
-                        },
-                        children: [
-                          (0, x.jsx)(`span`, { children: `＋` }),
-                          (0, x.jsxs)(`div`, {
-                            children: [
-                              (0, x.jsx)(`strong`, {
-                                children: `Add time manually`,
-                              }),
-                              (0, x.jsx)(`small`, {
-                                children: `For something you forgot to time`,
-                              }),
-                            ],
-                          }),
-                          (0, x.jsx)(`b`, { children: `›` }),
-                        ],
-                      }),
+                      !showStopwatch &&
+                        (0, x.jsxs)(x.Fragment, {
+                          children: [
+                            (0, x.jsxs)(`div`, {
+                              className: `utility-actions`,
+                              children: [
+                                (0, x.jsxs)(`button`, {
+                                  className: `manual-button admin-button`,
+                                  onClick: () => xe(`Admin`),
+                                  children: [
+                                    (0, x.jsx)(`span`, { children: `⚙` }),
+                                    (0, x.jsxs)(`div`, {
+                                      children: [
+                                        (0, x.jsx)(`strong`, {
+                                          children: `Admin`,
+                                        }),
+                                        (0, x.jsx)(`small`, {
+                                          children: `Choose a category`,
+                                        }),
+                                      ],
+                                    }),
+                                    (0, x.jsx)(`b`, { children: `›` }),
+                                  ],
+                                }),
+                                (0, x.jsxs)(`button`, {
+                                  className: `manual-button`,
+                                  onClick: () => {
+                                    (oe(``), h(`manual`));
+                                  },
+                                  children: [
+                                    (0, x.jsx)(`span`, { children: `＋` }),
+                                    (0, x.jsxs)(`div`, {
+                                      children: [
+                                        (0, x.jsx)(`strong`, {
+                                          children: `Add time manually`,
+                                        }),
+                                        (0, x.jsx)(`small`, {
+                                          children: `Forgot to time`,
+                                        }),
+                                      ],
+                                    }),
+                                    (0, x.jsx)(`b`, { children: `›` }),
+                                  ],
+                                }),
+                              ],
+                            }),
+                            (0, x.jsxs)(`button`, {
+                              className: `just-timer-button`,
+                              onClick: () =>
+                                c
+                                  ? setShowStopwatch(!0)
+                                  : startDetailsLaterTimer(),
+                              children: [
+                                (0, x.jsx)(`span`, { children: `▶` }),
+                                (0, x.jsxs)(`div`, {
+                                  children: [
+                                    (0, x.jsx)(`strong`, {
+                                      children: c ? `Return to timer` : `Timer`,
+                                    }),
+                                    (0, x.jsx)(`small`, {
+                                      children: c
+                                        ? c.running === !1
+                                          ? `Paused at ${ie(u, !0)}`
+                                          : `Running: ${ie(u, !0)}`
+                                        : `Start, stop, continue, or reset`,
+                                    }),
+                                  ],
+                                }),
+                              ],
+                            }),
+                          ],
+                        }),
                       (0, x.jsx)(`p`, {
                         className: `privacy-note`,
                         children: `☁ Securely synchronized. Case numbers are allowed; please don’t enter names or phone numbers.`,
                       }),
                     ],
                   })
-                : (0, x.jsxs)(`section`, {
+                : f === `dashboard`
+                  ? (0, x.jsxs)(`section`, {
+                      className: `dashboard-view`,
+                      children: [
+                        (0, x.jsxs)(`div`, {
+                          className: `dashboard-heading`,
+                          children: [
+                            (0, x.jsxs)(`div`, {
+                              children: [
+                                (0, x.jsx)(`p`, {
+                                  className: `eyebrow`,
+                                  children: dashboardView.label,
+                                }),
+                                (0, x.jsx)(`h2`, {
+                                  children: `${e.firstName}’s Dashboard`,
+                                }),
+                              ],
+                            }),
+                            (0, x.jsxs)(`div`, {
+                              className: `dashboard-total`,
+                              children: [
+                                (0, x.jsx)(`span`, { children: `Total hours` }),
+                                (0, x.jsx)(`strong`, {
+                                  children: ie(dashboardView.totalSeconds),
+                                }),
+                              ],
+                            }),
+                          ],
+                        }),
+                        (0, x.jsx)(`div`, {
+                          className: `dashboard-ranges`,
+                          children: [
+                            [`today`, `Today`],
+                            [`week`, `Week`],
+                            [`month`, `Month`],
+                            [`year`, `Year`],
+                          ].map(([e, t]) =>
+                            (0, x.jsx)(
+                              `button`,
+                              {
+                                className: dashboardRange === e ? `active` : ``,
+                                onClick: () => {
+                                  setDashboardRange(e);
+                                  setDashboardCategory(null);
+                                },
+                                children: t,
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
+                        dashboardCategory
+                          ? (0, x.jsxs)(`div`, {
+                              className: `dashboard-drilldown`,
+                              children: [
+                                (0, x.jsx)(`button`, {
+                                  className: `dashboard-back`,
+                                  onClick: () => setDashboardCategory(null),
+                                  children: `← Dashboard overview`,
+                                }),
+                                (0, x.jsx)(`h3`, { children: dashboardCategory }),
+                                (0, x.jsx)(`p`, {
+                                  children: dashboardView.label,
+                                }),
+                                dashboardView.categories.find(
+                                  (e) => e.name === dashboardCategory,
+                                )?.entries.length
+                                  ? (0, x.jsx)(`div`, {
+                                      className: `dashboard-detail-list`,
+                                      children: dashboardView.categories
+                                        .find((e) => e.name === dashboardCategory)
+                                        .entries.map((e) =>
+                                          (0, x.jsxs)(
+                                            `article`,
+                                            {
+                                              children: [
+                                                (0, x.jsxs)(`div`, {
+                                                  children: [
+                                                    (0, x.jsx)(`strong`, {
+                                                      children: e.detail || e.activity,
+                                                    }),
+                                                    (0, x.jsx)(`small`, {
+                                                      children: new Date(
+                                                        e.startedAt,
+                                                      ).toLocaleString([], {
+                                                        month: `short`,
+                                                        day: `numeric`,
+                                                        hour: `numeric`,
+                                                        minute: `2-digit`,
+                                                      }),
+                                                    }),
+                                                  ],
+                                                }),
+                                                (0, x.jsx)(`strong`, {
+                                                  children: ie(e.duration),
+                                                }),
+                                              ],
+                                            },
+                                            e.id,
+                                          ),
+                                        ),
+                                    })
+                                  : (0, x.jsx)(`p`, {
+                                      className: `dashboard-empty`,
+                                      children: `No entries in this category for the selected period.`,
+                                    }),
+                              ],
+                            })
+                          : (0, x.jsxs)(x.Fragment, {
+                              children: [
+                                (0, x.jsxs)(`div`, {
+                                  className: `dashboard-metrics`,
+                                  children: [
+                                    (0, x.jsxs)(`div`, {
+                                      className: `dashboard-metric total`,
+                                      children: [
+                                        (0, x.jsx)(`span`, { children: `Total time` }),
+                                        (0, x.jsx)(`strong`, {
+                                          children: ie(dashboardView.totalSeconds),
+                                        }),
+                                      ],
+                                    }),
+                                    ...[
+                                      [`Calls`, dashboardView.contactCounts.Call],
+                                      [`Texts`, dashboardView.contactCounts.Text],
+                                      [`Emails`, dashboardView.contactCounts.Email],
+                                      [`In-person`, dashboardView.contactCounts[`In-person`]],
+                                    ].map(([e, t]) =>
+                                      (0, x.jsxs)(
+                                        `div`,
+                                        {
+                                          className: `dashboard-metric`,
+                                          children: [
+                                            (0, x.jsx)(`span`, { children: e }),
+                                            (0, x.jsx)(`strong`, { children: t }),
+                                          ],
+                                        },
+                                        e,
+                                      ),
+                                    ),
+                                  ],
+                                }),
+                                (0, x.jsxs)(`div`, {
+                                  className: `dashboard-categories`,
+                                  children: [
+                                    (0, x.jsx)(`h3`, {
+                                      children: `Category breakdown`,
+                                    }),
+                                    ...dashboardView.categories.map((e) =>
+                                      (0, x.jsxs)(
+                                        `button`,
+                                        {
+                                          onClick: () => setDashboardCategory(e.name),
+                                          children: [
+                                            (0, x.jsxs)(`div`, {
+                                              children: [
+                                                (0, x.jsx)(`strong`, {
+                                                  children: e.name,
+                                                }),
+                                                (0, x.jsx)(`small`, {
+                                                  children: `${e.count} ${e.count === 1 ? `entry` : `entries`} · ${dashboardView.totalSeconds ? Math.round((e.seconds / dashboardView.totalSeconds) * 100) : 0}%`,
+                                                }),
+                                              ],
+                                            }),
+                                            (0, x.jsx)(`b`, {
+                                              children: ie(e.seconds),
+                                            }),
+                                            (0, x.jsx)(`span`, { children: `›` }),
+                                          ],
+                                        },
+                                        e.name,
+                                      ),
+                                    ),
+                                  ],
+                                }),
+                              ],
+                            }),
+                      ],
+                    })
+                  : (0, x.jsxs)(`section`, {
                     className: `history-view`,
                     children: [
                       (0, x.jsxs)(`div`, {
@@ -13499,44 +14348,76 @@ function ae() {
                           (0, x.jsxs)(`div`, {
                             className: `year-total`,
                             children: [
-                              (0, x.jsx)(`span`, { children: `This year` }),
-                              (0, x.jsx)(`strong`, { children: ie(ye.year) }),
+                              (0, x.jsx)(`span`, { children: historyView.label }),
+                              (0, x.jsx)(`strong`, {
+                                children: ie(historyView.total),
+                              }),
                             ],
                           }),
                         ],
                       }),
                       (0, x.jsxs)(`div`, {
-                        className: `history-summary`,
+                        className: `history-periods`,
                         children: [
-                          (0, x.jsxs)(`div`, {
-                            children: [
-                              (0, x.jsx)(`span`, { children: `Today` }),
-                              (0, x.jsx)(`strong`, { children: ie(ye.today) }),
-                            ],
+                          (0, x.jsx)(`button`, {
+                            className:
+                              historyPeriod === `currentMonth` ? `active` : ``,
+                            onClick: () => setHistoryPeriod(`currentMonth`),
+                            children: new Date().toLocaleDateString([], {
+                              month: `long`,
+                            }),
                           }),
-                          (0, x.jsxs)(`div`, {
-                            children: [
-                              (0, x.jsx)(`span`, { children: `Week` }),
-                              (0, x.jsx)(`strong`, { children: ie(ye.week) }),
-                            ],
+                          (0, x.jsx)(`button`, {
+                            className:
+                              historyPeriod === `lastMonth` ? `active` : ``,
+                            onClick: () => setHistoryPeriod(`lastMonth`),
+                            children: new Date(
+                              new Date().getFullYear(),
+                              new Date().getMonth() - 1,
+                              1,
+                            ).toLocaleDateString([], { month: `long` }),
                           }),
-                          (0, x.jsxs)(`div`, {
-                            children: [
-                              (0, x.jsx)(`span`, { children: `Month` }),
-                              (0, x.jsx)(`strong`, { children: ie(ye.month) }),
-                            ],
+                          (0, x.jsx)(`button`, {
+                            className: historyPeriod === `year` ? `active` : ``,
+                            onClick: () => setHistoryPeriod(`year`),
+                            children: String(new Date().getFullYear()),
                           }),
                         ],
                       }),
-                      i.length > 0 &&
+                      (0, x.jsxs)(`label`, {
+                        className: `past-month-picker`,
+                        children: [
+                          (0, x.jsx)(`span`, { children: `View another month` }),
+                          (0, x.jsx)(`input`, {
+                            type: `month`,
+                            value: historyMonth,
+                            max: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, `0`)}`,
+                            onChange: (e) => {
+                              if (!e.target.value) return;
+                              setHistoryMonth(e.target.value);
+                              setHistoryPeriod(`pastMonth`);
+                            },
+                          }),
+                        ],
+                      }),
+                      (0, x.jsxs)(`div`, {
+                        className: `history-selection-summary`,
+                        children: [
+                          (0, x.jsx)(`strong`, { children: historyView.label }),
+                          (0, x.jsx)(`span`, {
+                            children: `${historyView.entries.length} ${historyView.entries.length === 1 ? `entry` : `entries`} · ${ie(historyView.total)}`,
+                          }),
+                        ],
+                      }),
+                      historyView.entries.length > 0 &&
                         (0, x.jsx)(`p`, {
                           className: `swipe-hint`,
                           children: `Swipe an entry left to delete it`,
                         }),
-                      i.length
+                      historyView.entries.length
                         ? (0, x.jsx)(`div`, {
                             className: `entry-list`,
-                            children: i.map((t) =>
+                            children: historyView.entries.map((t) =>
                               (0, x.jsxs)(
                                 `article`,
                                 {
@@ -13556,13 +14437,14 @@ function ae() {
                                   },
                                   children: [
                                     (0, x.jsx)(`div`, {
-                                      className: `entry-icon ${te.find((e) => e.name === (t.activity === `Peer` ? `Flight Attendant Support` : t.activity))?.className || `other`}`,
+                                      className: `entry-icon ${te.find((e) => e.name === (t.activity === `Peer` || t.activity === `Flight Attendant Support` ? `FA/Co-Worker` : t.activity))?.className || `other`}`,
                                       children:
                                         te.find(
                                           (e) =>
                                             e.name ===
-                                            (t.activity === `Peer`
-                                              ? `Flight Attendant Support`
+                                            (t.activity === `Peer` ||
+                                            t.activity === `Flight Attendant Support`
+                                              ? `FA/Co-Worker`
                                               : t.activity),
                                         )
                                           ?.icon || `•`,
@@ -13574,8 +14456,9 @@ function ae() {
                                           children: [
                                             (0, x.jsx)(`strong`, {
                                               children:
-                                                t.activity === `Peer`
-                                                  ? `Flight Attendant Support`
+                                                t.activity === `Peer` ||
+                                                t.activity === `Flight Attendant Support`
+                                                  ? `FA/Co-Worker`
                                                   : t.activity,
                                             }),
                                             t.detail &&
@@ -13659,10 +14542,10 @@ function ae() {
                             children: [
                               (0, x.jsx)(`div`, { children: `☁` }),
                               (0, x.jsx)(`h3`, {
-                                children: `No cloud entries yet`,
+                                children: `No entries for ${historyView.label}`,
                               }),
                               (0, x.jsx)(`p`, {
-                                children: `Start a timer or add time manually. Your records will appear on every signed-in device.`,
+                                children: `Choose another month or add a new time entry.`,
                               }),
                             ],
                           }),
@@ -13699,6 +14582,12 @@ function ae() {
                               ? selectedDetail
                             : m === `hotlineCallerReason`
                               ? selectedDetail
+                            : m === `treatmentCenterDischarge` ||
+                                m === `postTreatmentCenterDischarge`
+                              ? `Client Discharge`
+                            : m === `treatmentCenterClientIssues` ||
+                                m === `postTreatmentCenterClientIssues`
+                              ? `Treatment Center`
                             : m === `categoryEntry`
                               ? pendingTimer?.activity
                             : m === `postTimerActivity` || m === `postTimerDetail`
@@ -13711,10 +14600,23 @@ function ae() {
                               ? `Draft only — does not sync to Sheets`
                             : m === `finishQuickNoteCategory`
                               ? `Finish quick note`
-                            : m === `testPositive` || m === `substances`
+                            : m === `testPositive` ||
+                                m === `positiveSubstances` ||
+                                m === `substances` ||
+                                m === `treatmentPlan` ||
+                                m === `treatmentPlanTypes` ||
+                                m === `treatmentLevel` ||
+                                m === `treatmentCenter` ||
+                                m === `iopTreatmentProgram`
                               ? selectedDetail
+                            : m === `clientCase`
+                              ? `Client · ${selectedDetail}`
                             : m === `comment`
                               ? `Timer complete`
+                            : m === `onCallSchedule`
+                              ? `Central Time · Separate from work hours`
+                            : m === `loungeVisit`
+                              ? `Inflight Base · Central Time`
                               : `Missed an entry?`,
                       }),
                       (0, x.jsx)(`h2`, {
@@ -13722,7 +14624,13 @@ function ae() {
                           m === `detail`
                             ? g === `Hotline`
                               ? `Who’s calling?`
-                              : `Choose the type`
+                              : g === `Client`
+                                ? `Current Stage`
+                              : g === `Treatment Center`
+                                ? `Reason for Contact`
+                              : g === `FADAP Team`
+                                ? `Connecting with`
+                                : `Choose the type`
                             : m === `contactMethod`
                               ? `How did you connect?`
                             : m === `reachOutRequestType`
@@ -13731,14 +14639,28 @@ function ae() {
                               ? `What do they need?`
                             : m === `hotlineCallerReason`
                               ? `What is the call about?`
+                            : m === `treatmentCenterDischarge` ||
+                                m === `postTreatmentCenterDischarge`
+                              ? `Discharge Details`
+                            : m === `treatmentCenterClientIssues` ||
+                                m === `postTreatmentCenterClientIssues`
+                              ? `Client Issues`
                             : m === `categoryEntry`
                               ? pendingTimer?.detail || `Enter the time`
                             : m === `postTimerActivity`
-                              ? `What were you working on?`
+                              ? `Connecting with`
                             : m === `postTimerDetail`
-                              ? `Choose the type`
+                              ? g === `Client`
+                                ? `Current Stage`
+                              : g === `Treatment Center`
+                                ? `Reason for Contact`
+                              : g === `FADAP Team`
+                                ? `Connecting with`
+                                : `Choose the type`
                             : m === `postReachOutRequestType`
                               ? `Who requested the reach out?`
+                            : m === `postHotlineUnion`
+                              ? `Union Details`
                             : m === `resetTimerConfirm`
                               ? `Reset timer?`
                             : m === `quickNote`
@@ -13747,10 +14669,30 @@ function ae() {
                               ? `Choose a category`
                             : m === `testPositive`
                               ? `Test positive?`
+                            : m === `clientCase`
+                              ? `Salesforce Case #`
+                            : m === `positiveSubstances`
+                              ? `What is it for?`
                             : m === `substances`
                               ? `Select all that apply`
+                            : m === `treatmentPlan`
+                              ? `Have a treatment plan at this time?`
+                            : m === `treatmentPlanTypes`
+                              ? `Select all that apply`
+                            : m === `treatmentLevel`
+                              ? `Inpatient or IOP?`
+                            : m === `treatmentCenter`
+                              ? `Select a treatment center`
+                            : m === `iopTreatmentProgram`
+                              ? `Select an IOP program`
                             : m === `comment`
                               ? `Add a quick note`
+                            : m === `onCallSchedule`
+                              ? editingOnCallId
+                                ? `Edit On-Call Schedule`
+                                : `Add On-Call Schedule`
+                            : m === `loungeVisit`
+                              ? `Lounge Visit`
                               : `Add time manually`,
                       }),
                       m === `detail` &&
@@ -13788,6 +14730,57 @@ function ae() {
                               e,
                             ),
                           ),
+                        }),
+                      m === `clientCase` &&
+                        g === `Client` &&
+                        (0, x.jsxs)(x.Fragment, {
+                          children: [
+                            (0, x.jsx)(`label`, {
+                              className: `field-label`,
+                              children:
+                                pendingClientDetail === `Initial Contact`
+                                  ? `Enter the Salesforce case number`
+                                  : `Choose a past case number or type a new one`,
+                            }),
+                            (0, x.jsx)(`input`, {
+                              className: `comment-input`,
+                              list: `past-salesforce-cases`,
+                              maxLength: 50,
+                              value: salesforceCase,
+                              onChange: (e) => setSalesforceCase(e.target.value),
+                              placeholder: `Salesforce case number`,
+                            }),
+                            (0, x.jsx)(`datalist`, {
+                              id: `past-salesforce-cases`,
+                              children: Array.from(
+                                new Set(
+                                  i
+                                    .map((e) => e.salesforceCase?.trim())
+                                    .filter(Boolean),
+                                ),
+                              ).map((e) =>
+                                (0, x.jsx)(`option`, { value: e }, e),
+                              ),
+                            }),
+                            (0, x.jsx)(`button`, {
+                              className: `save-button`,
+                              disabled:
+                                pendingClientDetail === `Initial Contact` &&
+                                !salesforceCase.trim(),
+                              onClick: () =>
+                                continueClientFlow(pendingClientDetail),
+                              children: `Continue`,
+                            }),
+                            pendingClientDetail !== `Initial Contact` &&
+                              (0, x.jsx)(`button`, {
+                                className: `skip-button`,
+                                onClick: () => {
+                                  (setSalesforceCase(``),
+                                    continueClientFlow(pendingClientDetail));
+                                },
+                                children: `Skip case number`,
+                              }),
+                          ],
                         }),
                       m === `reachOutRequestType` &&
                         g &&
@@ -13835,34 +14828,51 @@ function ae() {
                         g === `Hotline` &&
                         (0, x.jsx)(`div`, {
                           className: `detail-options`,
-                          children: (0, x.jsxs)(`button`, {
-                            onClick: () =>
-                              Se(
-                                `Hotline`,
-                                `${selectedDetail} — FA Reach Out Request`,
-                                `Call`,
-                              ),
-                            children: [
-                              `FA Reach Out Request`,
-                              (0, x.jsx)(`span`, { children: `›` }),
-                            ],
-                          }),
+                          children:
+                            selectedDetail === `Union`
+                              ? hotlineUnionTypes.map((e) =>
+                                  (0, x.jsxs)(
+                                    `button`,
+                                    {
+                                      onClick: () =>
+                                        Se(
+                                          `Hotline`,
+                                          `${selectedDetail} — ${e}`,
+                                          `Call`,
+                                        ),
+                                      children: [
+                                        e,
+                                        (0, x.jsx)(`span`, { children: `›` }),
+                                      ],
+                                    },
+                                    e,
+                                  ),
+                                )
+                              : (0, x.jsxs)(`button`, {
+                                  onClick: () =>
+                                    Se(
+                                      `Hotline`,
+                                      `${selectedDetail} — FA Reach Out Request`,
+                                      `Call`,
+                                    ),
+                                  children: [
+                                    `FA Reach Out Request`,
+                                    (0, x.jsx)(`span`, { children: `›` }),
+                                  ],
+                                }),
                         }),
-                      m === `testPositive` &&
-                        g &&
+                      m === `treatmentCenterDischarge` &&
+                        g === `Treatment Center` &&
                         (0, x.jsx)(`div`, {
                           className: `detail-options`,
-                          children: [`Yes`, `No`].map((e) =>
+                          children: treatmentCenterDischargeTypes.map((e) =>
                             (0, x.jsxs)(
                               `button`,
                               {
-                                onClick: () =>
-                                  e === `Yes`
-                                    ? (setSelectedSubstances([]),
-                                      h(`substances`))
-                                    : Se(g, selectedDetail, `Call`, {
-                                        testPositive: `No`,
-                                      }),
+                                onClick: () => {
+                                  setSelectedDetail(`Client Discharge — ${e}`);
+                                  h(`contactMethod`);
+                                },
                                 children: [
                                   e,
                                   (0, x.jsx)(`span`, { children: `›` }),
@@ -13872,13 +14882,112 @@ function ae() {
                             ),
                           ),
                         }),
+                      m === `treatmentCenterClientIssues` &&
+                        g === `Treatment Center` &&
+                        (0, x.jsx)(`div`, {
+                          className: `detail-options`,
+                          children: treatmentCenterClientIssueTypes.map((e) =>
+                            (0, x.jsxs)(
+                              `button`,
+                              {
+                                onClick: () => {
+                                  setSelectedDetail(`Client Issues — ${e}`);
+                                  h(`contactMethod`);
+                                },
+                                children: [
+                                  e,
+                                  (0, x.jsx)(`span`, { children: `›` }),
+                                ],
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
+                      m === `testPositive` &&
+                        g &&
+                        (0, x.jsx)(`div`, {
+                          className: `detail-options`,
+                          children: [`Yes`, `No`].map((e) =>
+                            (0, x.jsxs)(
+                              `button`,
+                              {
+                                onClick: () => {
+                                  (setSelectedTestPositive(e),
+                                    setSelectedPositiveSubstances([]),
+                                    setSelectedSubstances([]),
+                                    h(e === `Yes` ? `positiveSubstances` : `substances`));
+                                },
+                                children: [
+                                  e,
+                                  (0, x.jsx)(`span`, { children: `›` }),
+                                ],
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
+                      m === `positiveSubstances` &&
+                        g &&
+                        (0, x.jsxs)(x.Fragment, {
+                          children: [
+                            (0, x.jsx)(`div`, {
+                              className: `quick-comments`,
+                              children: [
+                                `Alcohol`,
+                                `Cannabis / THC`,
+                                `Opioids — prescription opioids, heroin, fentanyl`,
+                                `Stimulants — cocaine, methamphetamine, misuse of prescription stimulants`,
+                                `Benzodiazepines / Sedatives — Xanax, Ativan, Klonopin, etc.`,
+                                `Other Prescription Medication`,
+                                `Hallucinogens / Psychedelics`,
+                                `Inhalants`,
+                              ].map((e) =>
+                                (0, x.jsx)(
+                                  `button`,
+                                  {
+                                    className: selectedPositiveSubstances.includes(e)
+                                      ? `selected`
+                                      : ``,
+                                    onClick: () =>
+                                      setSelectedPositiveSubstances((t) =>
+                                        t.includes(e)
+                                          ? t.filter((t) => t !== e)
+                                          : [...t, e],
+                                      ),
+                                    children: e,
+                                  },
+                                  e,
+                                ),
+                              ),
+                            }),
+                            (0, x.jsx)(`button`, {
+                              className: `save-button`,
+                              disabled: selectedPositiveSubstances.length === 0,
+                              onClick: () =>
+                                selectedTestPositive === `Yes`
+                                  ? h(`substances`)
+                                  : Se(g, selectedDetail, `Call`, {
+                                      testPositive: selectedTestPositive,
+                                      substances: selectedPositiveSubstances,
+                                      supportNeeds: selectedSubstances,
+                                    }),
+                              children: `Continue`,
+                            }),
+                          ],
+                        }),
                       m === `substances` &&
                         g &&
                         (0, x.jsxs)(x.Fragment, {
                           children: [
                             (0, x.jsx)(`div`, {
                               className: `quick-comments`,
-                              children: [`Drugs`, `Alcohol`].map((e) =>
+                              children: [
+                                `Substance Abuse`,
+                                `Mental Health`,
+                                `Eating Disorder`,
+                                `Gambling`,
+                                `Sex Addiction`,
+                              ].map((e) =>
                                 (0, x.jsx)(
                                   `button`,
                                   {
@@ -13901,10 +15010,181 @@ function ae() {
                               className: `save-button`,
                               disabled: selectedSubstances.length === 0,
                               onClick: () =>
-                                Se(g, selectedDetail, `Call`, {
-                                  testPositive: `Yes`,
-                                  substances: selectedSubstances,
-                                }),
+                                selectedTestPositive === `No` &&
+                                selectedSubstances.includes(`Substance Abuse`)
+                                  ? h(`positiveSubstances`)
+                                  : Se(g, selectedDetail, `Call`, {
+                                      testPositive: selectedTestPositive,
+                                      substances:
+                                        selectedTestPositive === `Yes`
+                                          ? selectedPositiveSubstances
+                                          : [],
+                                      supportNeeds: selectedSubstances,
+                                    }),
+                              children: `Continue`,
+                            }),
+                          ],
+                        }),
+                      m === `treatmentLevel` &&
+                        g === `Client` &&
+                        (0, x.jsx)(`div`, {
+                          className: `detail-options`,
+                          children: [`Inpatient`, `IOP`].map((e) =>
+                            (0, x.jsxs)(
+                              `button`,
+                              {
+                                onClick: () => {
+                                  setSelectedTreatmentLevel(e);
+                                  e === `Inpatient`
+                                    ? h(`treatmentCenter`)
+                                    : h(`iopTreatmentProgram`);
+                                },
+                                children: [
+                                  e,
+                                  (0, x.jsx)(`span`, { children: `›` }),
+                                ],
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
+                      m === `treatmentCenter` &&
+                        g === `Client` &&
+                        (0, x.jsx)(`div`, {
+                          className: `detail-options`,
+                          children: inpatientTreatmentCenters.map((e) =>
+                            (0, x.jsxs)(
+                              `button`,
+                              {
+                                onClick: () =>
+                                  Se(
+                                    g,
+                                    `${selectedDetail} — Inpatient — ${e}`,
+                                    detailParent === `Hotline`
+                                      ? `Call`
+                                      : void 0,
+                                    {
+                                      treatmentLevel: selectedTreatmentLevel,
+                                      treatmentCenter: e,
+                                    },
+                                  ),
+                                children: [
+                                  e,
+                                  (0, x.jsx)(`span`, { children: `›` }),
+                                ],
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
+                      m === `iopTreatmentProgram` &&
+                        g === `Client` &&
+                        (0, x.jsx)(`div`, {
+                          className: `detail-options`,
+                          children: iopTreatmentPrograms.map((e) =>
+                            (0, x.jsxs)(
+                              `button`,
+                              {
+                                onClick: () =>
+                                  Se(
+                                    g,
+                                    `${selectedDetail} — IOP — ${e}`,
+                                    detailParent === `Hotline`
+                                      ? `Call`
+                                      : void 0,
+                                    {
+                                      treatmentLevel: selectedTreatmentLevel,
+                                      iopProgram: e,
+                                    },
+                                  ),
+                                children: [
+                                  e,
+                                  (0, x.jsx)(`span`, { children: `›` }),
+                                ],
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
+                      m === `treatmentPlan` &&
+                        g === `Client` &&
+                        (0, x.jsx)(`div`, {
+                          className: `detail-options`,
+                          children: [`Yes`, `No`, `Maybe`].map((e) =>
+                            (0, x.jsxs)(
+                              `button`,
+                              {
+                                onClick: () => {
+                                  (setSelectedTreatmentPlan(e),
+                                    setSelectedTreatmentPlanTypes([]),
+                                    e === `Yes`
+                                      ? h(`treatmentPlanTypes`)
+                                      : Se(
+                                          g,
+                                          selectedDetail,
+                                          detailParent === `Hotline`
+                                            ? `Call`
+                                            : void 0,
+                                          {
+                                          treatmentPlanAtThisTime: e,
+                                          treatmentPlanTypes: [],
+                                          },
+                                        ));
+                                },
+                                children: [
+                                  e,
+                                  (0, x.jsx)(`span`, { children: `›` }),
+                                ],
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
+                      m === `treatmentPlanTypes` &&
+                        g === `Client` &&
+                        (0, x.jsxs)(x.Fragment, {
+                          children: [
+                            (0, x.jsx)(`div`, {
+                              className: `quick-comments`,
+                              children: [
+                                `Inpatient`,
+                                `Outpatient`,
+                                `Therapy`,
+                                `AA`,
+                              ].map((e) =>
+                                (0, x.jsx)(
+                                  `button`,
+                                  {
+                                    className: selectedTreatmentPlanTypes.includes(e)
+                                      ? `selected`
+                                      : ``,
+                                    onClick: () =>
+                                      setSelectedTreatmentPlanTypes((t) =>
+                                        t.includes(e)
+                                          ? t.filter((t) => t !== e)
+                                          : [...t, e],
+                                      ),
+                                    children: e,
+                                  },
+                                  e,
+                                ),
+                              ),
+                            }),
+                            (0, x.jsx)(`button`, {
+                              className: `save-button`,
+                              disabled: selectedTreatmentPlanTypes.length === 0,
+                              onClick: () =>
+                                Se(
+                                  g,
+                                  selectedDetail,
+                                  detailParent === `Hotline`
+                                    ? `Call`
+                                    : void 0,
+                                  {
+                                    treatmentPlanAtThisTime: selectedTreatmentPlan,
+                                    treatmentPlanTypes: selectedTreatmentPlanTypes,
+                                  },
+                                ),
                               children: `Continue`,
                             }),
                           ],
@@ -13924,17 +15204,31 @@ function ae() {
                               onChange: (e) => setCategoryNote(e.target.value),
                               placeholder: `Add notes (optional)`,
                             }),
-                            (0, x.jsx)(`label`, {
-                              className: `field-label`,
-                              children: `Salesforce Case #`,
-                            }),
-                            (0, x.jsx)(`input`, {
-                              className: `comment-input`,
-                              maxLength: 50,
-                              value: salesforceCase,
-                              onChange: (e) => setSalesforceCase(e.target.value),
-                              placeholder: `Enter case number (optional)`,
-                            }),
+                            pendingTimer.activity !== `Admin` &&
+                              (pendingTimer.activity !== `Union` ||
+                                pendingTimer.detail !== `Timesheets`) &&
+                              (pendingTimer.activity !== `Client` ||
+                                pendingTimer.detail === `Initial Contact`) &&
+                              (0, x.jsxs)(x.Fragment, {
+                                children: [
+                                  (0, x.jsx)(`label`, {
+                                    className: `field-label`,
+                                    children:
+                                      pendingTimer.activity === `Client` &&
+                                      pendingTimer.detail === `Initial Contact`
+                                        ? `Salesforce Case # (optional — skip for now)`
+                                        : `Salesforce Case #`,
+                                  }),
+                                  (0, x.jsx)(`input`, {
+                                    className: `comment-input`,
+                                    maxLength: 50,
+                                    value: salesforceCase,
+                                    onChange: (e) =>
+                                      setSalesforceCase(e.target.value),
+                                    placeholder: `Enter case number (optional)`,
+                                  }),
+                                ],
+                              }),
                             (0, x.jsx)(`label`, {
                               className: `field-label`,
                               children: `Time`,
@@ -13983,7 +15277,9 @@ function ae() {
                         v &&
                         (0, x.jsx)(`div`, {
                           className: `detail-options`,
-                          children: te.map((e) =>
+                          children: te
+                            .filter((e) => e.name !== `Quick Notes`)
+                            .map((e) =>
                             (0, x.jsxs)(
                               `button`,
                               {
@@ -14015,6 +15311,54 @@ function ae() {
                             ),
                           ),
                         }),
+                      m === `postTreatmentCenterDischarge` &&
+                        v &&
+                        (0, x.jsx)(`div`, {
+                          className: `detail-options`,
+                          children: treatmentCenterDischargeTypes.map((e) =>
+                            (0, x.jsxs)(
+                              `button`,
+                              {
+                                onClick: () =>
+                                  (y((t) => ({
+                                    ...t,
+                                    activity: `Treatment Center`,
+                                    detail: `Client Discharge — ${e}`,
+                                  })),
+                                  h(`comment`)),
+                                children: [
+                                  e,
+                                  (0, x.jsx)(`span`, { children: `›` }),
+                                ],
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
+                      m === `postTreatmentCenterClientIssues` &&
+                        v &&
+                        (0, x.jsx)(`div`, {
+                          className: `detail-options`,
+                          children: treatmentCenterClientIssueTypes.map((e) =>
+                            (0, x.jsxs)(
+                              `button`,
+                              {
+                                onClick: () =>
+                                  (y((t) => ({
+                                    ...t,
+                                    activity: `Treatment Center`,
+                                    detail: `Client Issues — ${e}`,
+                                  })),
+                                  h(`comment`)),
+                                children: [
+                                  e,
+                                  (0, x.jsx)(`span`, { children: `›` }),
+                                ],
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
                       m === `postReachOutRequestType` &&
                         v &&
                         (0, x.jsx)(`div`, {
@@ -14028,6 +15372,31 @@ function ae() {
                                     ...t,
                                     activity: `Hotline`,
                                     detail: `${selectedDetail} — ${e}`,
+                                    contactMethod: `Call`,
+                                  })),
+                                  h(`comment`)),
+                                children: [
+                                  e,
+                                  (0, x.jsx)(`span`, { children: `›` }),
+                                ],
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
+                      m === `postHotlineUnion` &&
+                        v &&
+                        (0, x.jsx)(`div`, {
+                          className: `detail-options`,
+                          children: hotlineUnionTypes.map((e) =>
+                            (0, x.jsxs)(
+                              `button`,
+                              {
+                                onClick: () =>
+                                  (y((t) => ({
+                                    ...t,
+                                    activity: `Hotline`,
+                                    detail: `Union — ${e}`,
                                     contactMethod: `Call`,
                                   })),
                                   h(`comment`)),
@@ -14116,12 +15485,146 @@ function ae() {
                               ),
                             ),
                         }),
+                      m === `onCallSchedule` &&
+                        (0, x.jsxs)(`div`, {
+                          className: `on-call-form`,
+                          children: [
+                            (0, x.jsx)(`label`, {
+                              className: `field-label`,
+                              children: `Schedule type`,
+                            }),
+                            (0, x.jsx)(`div`, {
+                              className: `on-call-type-options`,
+                              children: [
+                                [`WOC`, `WOC`],
+                                [`Backup`, `24 Hour Backup`],
+                                [`Regional`, `2-Week Regional`],
+                              ].map(([e, t]) =>
+                                (0, x.jsx)(
+                                  `button`,
+                                  {
+                                    className: onCallType === e ? `selected` : ``,
+                                    onClick: () => {
+                                      setOnCallType(e);
+                                      setOnCallError(``);
+                                      e === `Regional` &&
+                                        setOnCallEndDate(addCalendarDays(onCallStartDate, 13));
+                                    },
+                                    children: t,
+                                  },
+                                  e,
+                                ),
+                              ),
+                            }),
+                            (0, x.jsx)(`label`, {
+                              className: `field-label`,
+                              children:
+                                onCallType === `Backup` ? `Date` : `Start date`,
+                            }),
+                            (0, x.jsx)(`input`, {
+                              className: `on-call-date-input`,
+                              type: `date`,
+                              value: onCallStartDate,
+                              onChange: (e) => {
+                                setOnCallStartDate(e.target.value);
+                                onCallType === `Regional` &&
+                                  setOnCallEndDate(addCalendarDays(e.target.value, 13));
+                                setOnCallError(``);
+                              },
+                            }),
+                            onCallType === `Regional` &&
+                              (0, x.jsxs)(x.Fragment, {
+                                children: [
+                                  (0, x.jsx)(`label`, {
+                                    className: `field-label`,
+                                    children: `End date`,
+                                  }),
+                                  (0, x.jsx)(`input`, {
+                                    className: `on-call-date-input`,
+                                    type: `date`,
+                                    min: onCallStartDate,
+                                    value: onCallEndDate,
+                                    onChange: (e) => {
+                                      setOnCallEndDate(e.target.value);
+                                      setOnCallError(``);
+                                    },
+                                  }),
+                                ],
+                              }),
+                            (0, x.jsx)(`p`, {
+                              className: `on-call-rule`,
+                              children:
+                                onCallType === `WOC`
+                                  ? `7 days · 10:00 AM to 10:00 AM CT · 168 hours`
+                                  : onCallType === `Backup`
+                                    ? `12:00 AM to 11:59 PM CT · 24 hours`
+                                    : `14 calendar days · 336 hours`,
+                            }),
+                            onCallError &&
+                              (0, x.jsx)(`p`, {
+                                className: `on-call-form-error`,
+                                children: onCallError,
+                              }),
+                            (0, x.jsx)(`button`, {
+                              className: `save-button`,
+                              disabled: onCallSaving || !onCallStartDate,
+                              onClick: saveOnCallSchedule,
+                              children: onCallSaving
+                                ? `Saving…`
+                                : editingOnCallId
+                                  ? `Update schedule`
+                                  : `Save schedule`,
+                            }),
+                          ],
+                        }),
+                      m === `loungeVisit` &&
+                        (0, x.jsxs)(x.Fragment, {
+                          children: [
+                            (0, x.jsxs)(`div`, {
+                              className: `field-row`,
+                              children: [
+                                (0, x.jsxs)(`label`, {
+                                  children: [
+                                    (0, x.jsx)(`span`, { children: `Date` }),
+                                    (0, x.jsx)(`input`, {
+                                      type: `date`,
+                                      value: pe,
+                                      onChange: (e) => me(e.target.value),
+                                    }),
+                                  ],
+                                }),
+                                (0, x.jsxs)(`label`, {
+                                  children: [
+                                    (0, x.jsx)(`span`, {
+                                      children: `Start time (CT)`,
+                                    }),
+                                    (0, x.jsx)(`input`, {
+                                      type: `time`,
+                                      value: D,
+                                      onChange: (e) => O(e.target.value),
+                                    }),
+                                  ],
+                                }),
+                              ],
+                            }),
+                            (0, x.jsx)(`p`, {
+                              className: `on-call-rule`,
+                              children: `This lounge visit will be logged as 8 hours.`,
+                            }),
+                            (0, x.jsx)(`button`, {
+                              className: `save-button`,
+                              disabled: se || !pe || !D,
+                              onClick: saveLoungeVisit,
+                              children: se ? `Saving…` : `Log 8 hours`,
+                            }),
+                          ],
+                        }),
                       m === `manual` &&
                         (0, x.jsxs)(x.Fragment, {
                           children: [
                             (0, x.jsx)(`label`, {
                               className: `field-label`,
-                              children: `Who are you connecting with?`,
+                              children: `Connecting with`,
                             }),
                             (0, x.jsx)(`div`, {
                               className: `activity-pills`,
@@ -14137,6 +15640,7 @@ function ae() {
                                         fe(``),
                                         setManualContactMethod(``),
                                         setManualTestPositive(``),
+                                        setManualPositiveSubstances([]),
                                         setManualSubstances([]));
                                     },
                                     children: e.name,
@@ -14163,6 +15667,7 @@ function ae() {
                                             (fe(e),
                                               setManualContactMethod(``),
                                               setManualTestPositive(``),
+                                              setManualPositiveSubstances([]),
                                               setManualSubstances([]));
                                           },
                                           children: e,
@@ -14190,8 +15695,11 @@ function ae() {
                                             manualContactMethod === e
                                               ? `selected`
                                               : ``,
-                                          onClick: () =>
-                                            setManualContactMethod(e),
+                                          onClick: () => {
+                                            (setManualContactMethod(e),
+                                              ge(0),
+                                              ve(e === `Text` ? 5 : 15));
+                                          },
                                           children: e,
                                         },
                                         e,
@@ -14218,8 +15726,9 @@ function ae() {
                                             manualTestPositive === e
                                               ? `selected`
                                               : ``,
-                                          onClick: () => {
+                                        onClick: () => {
                                             (setManualTestPositive(e),
+                                              setManualPositiveSubstances([]),
                                               setManualSubstances([]));
                                           },
                                           children: e,
@@ -14228,7 +15737,48 @@ function ae() {
                                       ),
                                     ),
                                   }),
-                                  manualTestPositive === `Yes` &&
+                                  (manualTestPositive === `Yes` ||
+                                    manualSubstances.includes(`Substance Abuse`)) &&
+                                    (0, x.jsxs)(x.Fragment, {
+                                      children: [
+                                        (0, x.jsx)(`label`, {
+                                          className: `field-label`,
+                                          children: `What is it for?`,
+                                        }),
+                                        (0, x.jsx)(`div`, {
+                                          className: `quick-comments`,
+                                          children: [
+                                            `Alcohol`,
+                                            `Cannabis / THC`,
+                                            `Opioids — prescription opioids, heroin, fentanyl`,
+                                            `Stimulants — cocaine, methamphetamine, misuse of prescription stimulants`,
+                                            `Benzodiazepines / Sedatives — Xanax, Ativan, Klonopin, etc.`,
+                                            `Other Prescription Medication`,
+                                            `Hallucinogens / Psychedelics`,
+                                            `Inhalants`,
+                                          ].map((e) =>
+                                            (0, x.jsx)(
+                                              `button`,
+                                              {
+                                                className:
+                                                  manualPositiveSubstances.includes(e)
+                                                    ? `selected`
+                                                    : ``,
+                                                onClick: () =>
+                                                  setManualPositiveSubstances((t) =>
+                                                    t.includes(e)
+                                                      ? t.filter((t) => t !== e)
+                                                      : [...t, e],
+                                                  ),
+                                                children: e,
+                                              },
+                                              e,
+                                            ),
+                                          ),
+                                        }),
+                                      ],
+                                    }),
+                                  manualTestPositive &&
                                     (0, x.jsxs)(x.Fragment, {
                                       children: [
                                         (0, x.jsx)(`label`, {
@@ -14237,8 +15787,13 @@ function ae() {
                                         }),
                                         (0, x.jsx)(`div`, {
                                           className: `quick-comments`,
-                                          children: [`Drugs`, `Alcohol`].map(
-                                            (e) =>
+                                          children: [
+                                            `Substance Abuse`,
+                                            `Mental Health`,
+                                            `Eating Disorder`,
+                                            `Gambling`,
+                                            `Sex Addiction`,
+                                          ].map((e) =>
                                               (0, x.jsx)(
                                                 `button`,
                                                 {
@@ -14332,15 +15887,26 @@ function ae() {
                         m !== `reachOutRequestType` &&
                         m !== `hotlineFlightAttendant` &&
                         m !== `hotlineCallerReason` &&
+                        m !== `treatmentCenterDischarge` &&
+                        m !== `treatmentCenterClientIssues` &&
                         m !== `categoryEntry` &&
                         m !== `postTimerActivity` &&
                         m !== `postTimerDetail` &&
                         m !== `postReachOutRequestType` &&
+                        m !== `postHotlineUnion` &&
+                        m !== `postTreatmentCenterDischarge` &&
+                        m !== `postTreatmentCenterClientIssues` &&
                         m !== `resetTimerConfirm` &&
                         m !== `quickNote` &&
                         m !== `finishQuickNoteCategory` &&
                         m !== `testPositive` &&
+                        m !== `clientCase` &&
+                        m !== `positiveSubstances` &&
                         m !== `substances` &&
+                        m !== `treatmentPlan` &&
+                        m !== `treatmentPlanTypes` &&
+                        m !== `onCallSchedule` &&
+                        m !== `loungeVisit` &&
                         (0, x.jsxs)(x.Fragment, {
                           children: [
                             (0, x.jsxs)(`label`, {
@@ -14372,8 +15938,10 @@ function ae() {
                                   T === `Client` &&
                                   de === `Initial Contact` &&
                                   (!manualTestPositive ||
-                                    (manualTestPositive === `Yes` &&
-                                      manualSubstances.length === 0))),
+                                    ((manualTestPositive === `Yes` ||
+                                      manualSubstances.includes(`Substance Abuse`)) &&
+                                      manualPositiveSubstances.length === 0) ||
+                                    manualSubstances.length === 0)),
                               onClick: m === `comment` ? () => we() : Te,
                               children: se ? `Saving…` : `Save entry`,
                             }),

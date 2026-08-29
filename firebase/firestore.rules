@@ -11,7 +11,10 @@ service cloud.firestore {
           "sandiepietz@gmail.com",
           "spietzfadap@gmail.com",
           "tspillersfadap@gmail.com",
-          "mitchellpietz@gmail.com"
+          "mitchellpietz@gmail.com",
+          "arouttenfadap@gmail.com",
+          "peggerfadap@gmail.com",
+          "gwrennfadap@gmail.com"
         ];
     }
 
@@ -21,6 +24,11 @@ service cloud.firestore {
     }
 
     match /users/{userId}/quickNotes/{noteId} {
+      allow read, create, update, delete: if approved()
+        && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/onCallSchedules/{scheduleId} {
       allow read, create, update, delete: if approved()
         && request.auth.uid == userId;
     }

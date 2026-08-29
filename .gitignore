@@ -1,0 +1,10 @@
+**/.DS_Store
+
+# Firebase CLI state and logs
+firebase-debug.log
+**/firebase-debug.log
+firebase/.firebase/
+
+# Local Firebase environment configuration
+firebase/functions/.env*
+!firebase/functions/.env.example

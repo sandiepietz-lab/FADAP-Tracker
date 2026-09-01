@@ -672,6 +672,9 @@ h1 {
   font-size: 11px;
   font-weight: 900;
 }
+.quick-note-card .delete-draft-button {
+  background: #a63737;
+}
 .privacy-note span {
   color: #2b9d77;
   font-weight: 700;
@@ -1168,6 +1171,21 @@ h1 {
   white-space: nowrap;
   font-size: 14px;
 }
+.entry-actions {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  display: flex;
+}
+.edit-entry-button {
+  color: #1769aa;
+  background: #eaf3fa;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 900;
+}
 .delete-button {
   color: #fff;
   background: #d84950;
@@ -1385,8 +1403,32 @@ h1 {
 }
 .duration-fields span {
   color: #74818d;
-  padding-right: 12px;
+  padding-right: 8px;
   font-size: 11px;
+}
+.duration-stepper {
+  border-left: 1px solid #d9e0e5;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-self: stretch;
+  display: flex;
+}
+.duration-stepper button {
+  color: #173c65;
+  background: #f3f8fc;
+  border: 0;
+  border-bottom: 1px solid #d9e0e5;
+  min-width: 34px;
+  min-height: 24px;
+  padding: 2px 8px;
+  font-size: 11px;
+  line-height: 1;
+}
+.duration-stepper button:last-child {
+  border-bottom: 0;
+}
+.duration-stepper button:active {
+  background: #dcecf8;
 }
 .save-button {
   color: #fff;
@@ -1551,6 +1593,15 @@ h1 {
   border: 0;
   font-size: 11px;
   font-weight: 800;
+}
+.account-actions {
+  align-items: center;
+  gap: 6px;
+  display: flex;
+  flex-shrink: 0;
+}
+.account-actions button {
+  padding: 8px 5px;
 }
 .on-call-card {
   background: #f7fbfe;
@@ -1755,4 +1806,10 @@ h1 {
 }
 .save-button:disabled {
   opacity: 0.65;
+}
+.app-version {
+  color: #718092;
+  text-align: center;
+  padding: 4px 8px 10px;
+  font-size: 9px;
 }

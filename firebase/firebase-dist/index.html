@@ -7,11 +7,14 @@
       content="width=device-width, initial-scale=1, maximum-scale=1"
     />
     <meta name="theme-color" content="#173c65" />
+    <meta name="application-name" content="FADAP Daily" />
+    <meta name="apple-mobile-web-app-title" content="FADAP Daily" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta
       name="description"
-      content="Secure synchronized FADAP time tracking."
+      content="FADAP Daily — One hour at a time."
     />
-    <title>FADAP Hours Google</title>
+    <title>FADAP Daily</title>
     <script
       defer
       src="https://www.gstatic.com/firebasejs/12.1.0/firebase-app-compat.js"
@@ -27,15 +30,56 @@
     <script
       type="module"
       crossorigin
-      src="/assets/index-tT16tZ1S.js?v=63"
+      src="/assets/index-tT16tZ1S.js?v=1.0.82"
     ></script>
+    <script>
+      (() => {
+        let checkingForUpdate = false;
+
+        async function checkForUpdate() {
+          if (checkingForUpdate || document.visibilityState === "hidden") return;
+          checkingForUpdate = true;
+          try {
+            const currentScript = document
+              .querySelector('script[type="module"]')
+              ?.getAttribute("src");
+            const response = await fetch(`/?update-check=${Date.now()}`, {
+              cache: "no-store",
+            });
+            if (!response.ok) return;
+            const latestPage = new DOMParser().parseFromString(
+              await response.text(),
+              "text/html",
+            );
+            const latestScript = latestPage
+              .querySelector('script[type="module"]')
+              ?.getAttribute("src");
+            if (currentScript && latestScript && currentScript !== latestScript) {
+              window.location.reload();
+            }
+          } catch {
+            // Stay on the current version when the device is offline.
+          } finally {
+            checkingForUpdate = false;
+          }
+        }
+
+        window.addEventListener("focus", checkForUpdate);
+        window.addEventListener("pageshow", checkForUpdate);
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") checkForUpdate();
+        });
+        window.setInterval(checkForUpdate, 5 * 60 * 1000);
+      })();
+    </script>
     <link
       rel="stylesheet"
       crossorigin
-      href="/assets/index-B3A5AJiX.css?v=23"
+      href="/assets/index-B3A5AJiX.css?v=1.0.82"
     />
   </head>
-  <body>
+  <body data-app-version="1.0.82">
     <div id="root"></div>
+    <div class="app-version" aria-label="App version">Version 1.0.82</div>
   </body>
 </html>

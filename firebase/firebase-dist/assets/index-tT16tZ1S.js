@@ -12645,6 +12645,33 @@ Error generating stack: ` +
     `arouttenfadap@gmail.com`,
     `peggerfadap@gmail.com`,
     `gwrennfadap@gmail.com`,
+    `bdumasfadap@gmail.com`,
+    `bbedillionfadap@gmail.com`,
+    `culrichfadap@gmail.com`,
+    `dmartinezfadap@gmail.com`,
+    `dkrupskifadap@gmail.com`,
+    `darnettfadap@gmail.com`,
+    `ealexanderfadap@gmail.com`,
+    `ewatermanfadap@gmail.com`,
+    `gsteinkefadap@gmail.com`,
+    `jhollingsworthfadap@gmail.com`,
+    `jwallerfadap@gmail.com`,
+    `jsmithfadap@gmail.com`,
+    `jnevantfadap@gmail.com`,
+    `klynchfadap@gmail.com`,
+    `kbullfadap@gmail.com`,
+    `llightfadap@gmail.com`,
+    `mstidumfadap@gmail.com`,
+    `nbergrenfadap@gmail.com`,
+    `nrossfadap@gmail.com`,
+    `pspencefadap@gmail.com`,
+    `pbullardfadap@gmail.com`,
+    `rtumlinsonfadap@gmail.com`,
+    `sflowersfadap@gmail.com`,
+    `sgrumfadap@gmail.com`,
+    `shartmanfadap@gmail.com`,
+    `tdawsonfadap@gmail.com`,
+    `wforsythfadap@gmail.com`,
   ],
   S = `fadap-google-active-v1`,
   C = {
@@ -12685,11 +12712,12 @@ Error generating stack: ` +
     Client: [
       `Initial Contact`,
       `Initial Follow-up`,
-      `Going Into Treatment`,
+      `Awaiting Admission to Treatment`,
       `In Treatment`,
-      `In IOP`,
-      `In RSP`,
-      `Discharge Call`,
+      `Ongoing Recovery`,
+      `RSP`,
+      `Relapse`,
+      `Client Follow-up/Check-In`,
       `Back Online`,
       `Terminated`,
       `Resigned`,
@@ -12713,16 +12741,17 @@ Error generating stack: ` +
     "FADAP Team": [
       `FADAP Leadership`,
       `FADAP Member`,
-      `24 Hour Backup`,
+      `Hotline Temporary Log in Request`,
       `WOC Review`,
       `WOC Debrief`,
       `Team Meeting`,
       `SWA Quarterly Meeting`,
     ],
-    Admin: [
+    "Other Team Work": [
       `Media / Communications`,
       `Training / Education`,
       `Committee Work`,
+      `Special Project`,
       `Other`,
     ],
     Union: [
@@ -12819,7 +12848,7 @@ Error generating stack: ` +
     e !== `Quick Add` &&
     !(
       e === `Client` &&
-      (t === `Initial Contact` || t === `Discharge Call`)
+      (t === `Initial Contact` || t === `Client Follow-up/Check-In`)
     ) &&
     !(
       e === `FADAP Team` &&
@@ -12853,6 +12882,11 @@ Error generating stack: ` +
     let [n, r, i] = e.split(`-`).map(Number),
       a = new Date(Date.UTC(n, r - 1, i + t));
     return `${a.getUTCFullYear()}-${String(a.getUTCMonth() + 1).padStart(2, `0`)}-${String(a.getUTCDate()).padStart(2, `0`)}`;
+  },
+  addMinutesToTime = (e, t) => {
+    let [n, r] = e.split(`:`).map(Number),
+      i = (n * 60 + r + t) % (24 * 60);
+    return `${String(Math.floor(i / 60)).padStart(2, `0`)}:${String(i % 60).padStart(2, `0`)}`;
   },
   centralDateTime = (e, t, n) => {
     let [r, i, a] = e.split(`-`).map(Number),
@@ -12908,6 +12942,26 @@ Error generating stack: ` +
       time: `${parts.hour}:${parts.minute}`,
     };
   },
+  centralDateKey = (e) => {
+    let t = new Date(e);
+    if (Number.isNaN(t.getTime())) return ``;
+    let n = Object.fromEntries(
+      new Intl.DateTimeFormat(`en-US`, {
+        timeZone: `America/Chicago`,
+        year: `numeric`,
+        month: `2-digit`,
+        day: `2-digit`,
+      })
+        .formatToParts(t)
+        .filter((e) => e.type !== `literal`)
+        .map((e) => [e.type, e.value]),
+    );
+    return `${n.year}-${n.month}-${n.day}`;
+  },
+  isFutureLoungeVisit = (e, t = new Date()) =>
+    e.activity === `Inflight Base` &&
+    e.detail === `Lounge Visit` &&
+    centralDateKey(e.startedAt) > centralDateKey(t),
   getOnCallStatus = (e, t = Date.now()) =>
     t < Date.parse(e.startDateTime)
       ? `scheduled`
@@ -12942,14 +12996,20 @@ function ae() {
     [selectedTreatmentPlan, setSelectedTreatmentPlan] = (0, b.useState)(``),
     [selectedTreatmentPlanTypes, setSelectedTreatmentPlanTypes] = (0, b.useState)([]),
     [selectedTreatmentLevel, setSelectedTreatmentLevel] = (0, b.useState)(``),
+    [optionalTreatmentFacility, setOptionalTreatmentFacility] = (0, b.useState)(``),
+    [selectedRSPStatus, setSelectedRSPStatus] = (0, b.useState)(``),
     [pendingTimer, setPendingTimer] = (0, b.useState)(null),
     [previousCategoryStep, setPreviousCategoryStep] = (0, b.useState)(null),
     [detailParent, setDetailParent] = (0, b.useState)(null),
     [pendingClientDetail, setPendingClientDetail] = (0, b.useState)(``),
     [categoryNote, setCategoryNote] = (0, b.useState)(``),
     [salesforceCase, setSalesforceCase] = (0, b.useState)(``),
+    [categoryDate, setCategoryDate] = (0, b.useState)(() =>
+      currentCentralInput().date,
+    ),
     [categoryHours, setCategoryHours] = (0, b.useState)(0),
-    [categoryMinutes, setCategoryMinutes] = (0, b.useState)(15),
+    [categoryMinutes, setCategoryMinutes] = (0, b.useState)(5),
+    [editingEntryId, setEditingEntryId] = (0, b.useState)(null),
     [swipedEntryId, setSwipedEntryId] = (0, b.useState)(null),
     [historyPeriod, setHistoryPeriod] = (0, b.useState)(`currentMonth`),
     [dashboardRange, setDashboardRange] = (0, b.useState)(`month`),
@@ -12978,8 +13038,17 @@ function ae() {
     [finishingQuickNote, setFinishingQuickNote] = (0, b.useState)(null),
     [pe, me] = (0, b.useState)(() => new Date().toISOString().slice(0, 10)),
     [D, O] = (0, b.useState)(() => new Date().toTimeString().slice(0, 5)),
+    [hotlineLoginDate, setHotlineLoginDate] = (0, b.useState)(() =>
+      currentCentralInput().date,
+    ),
+    [hotlineLoginTime, setHotlineLoginTime] = (0, b.useState)(() =>
+      currentCentralInput().time,
+    ),
+    [hotlineLoginEndTime, setHotlineLoginEndTime] = (0, b.useState)(() =>
+      addMinutesToTime(currentCentralInput().time, 5),
+    ),
     [he, ge] = (0, b.useState)(0),
-    [_e, ve] = (0, b.useState)(15);
+    [_e, ve] = (0, b.useState)(5);
   ((0, b.useEffect)(() => {
     let e = !1,
       n = () => {
@@ -13127,11 +13196,12 @@ function ae() {
       e();
       let t = window.setInterval(e, 1e3);
       return () => clearInterval(t);
-    }, [c]));
+  }, [c]));
   let ye = (0, b.useMemo)(() => {
-    let e = new Date(),
+    let e = new Date(onCallNow),
+      hourEntries = i.filter((t) => !isFutureLoungeVisit(t, e)),
       t = (e) =>
-        i.reduce(
+        hourEntries.reduce(
           (t, n) => (new Date(n.startedAt) >= e ? t + n.duration : t),
           0,
         );
@@ -13141,9 +13211,9 @@ function ae() {
       month: t(new Date(e.getFullYear(), e.getMonth(), 1)),
       year: t(new Date(e.getFullYear(), 0, 1)),
     };
-  }, [i]);
+  }, [i, onCallNow]);
   let historyView = (0, b.useMemo)(() => {
-    let now = new Date(),
+    let now = new Date(onCallNow),
       currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1),
       lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1),
       yearStart = new Date(now.getFullYear(), 0, 1),
@@ -13178,11 +13248,14 @@ function ae() {
         let entryDate = new Date(e.startedAt);
         return entryDate >= start && entryDate < end;
       }),
-      total = entries.reduce((e, t) => e + t.duration, 0);
+      total = entries.reduce(
+        (e, t) => e + (isFutureLoungeVisit(t, now) ? 0 : t.duration),
+        0,
+      );
     return { entries, total, label };
-  }, [i, historyPeriod, historyMonth]);
+  }, [i, historyPeriod, historyMonth, onCallNow]);
   let dashboardView = (0, b.useMemo)(() => {
-    let now = new Date(),
+    let now = new Date(onCallNow),
       start =
         dashboardRange === `today`
           ? re(now)
@@ -13197,7 +13270,10 @@ function ae() {
         month: now.toLocaleDateString([], { month: `long`, year: `numeric` }),
         year: String(now.getFullYear()),
       },
-      entries = i.filter((e) => new Date(e.startedAt) >= start),
+      entries = i.filter(
+        (e) =>
+          new Date(e.startedAt) >= start && !isFutureLoungeVisit(e, now),
+      ),
       totalSeconds = entries.reduce((e, t) => e + (Number(t.duration) || 0), 0),
       contactCounts = { Call: 0, Text: 0, Email: 0, "In-person": 0 },
       categoryNames = [
@@ -13232,12 +13308,19 @@ function ae() {
       label: labels[dashboardRange],
       categories: categoryNames.map((e) => categories[e]),
     };
-  }, [i, dashboardRange]);
+  }, [i, dashboardRange, onCallNow]);
   let onCallTotals = (0, b.useMemo)(() => {
-    let totals = { WOC: 0, Backup: 0, Regional: 0, overall: 0 };
+    let totals = {
+      WOC: 0,
+      Backup: 0,
+      Regional: 0,
+      HotlineLogin: 0,
+      overall: 0,
+    };
     onCallSchedules.forEach((e) => {
       if (getOnCallStatus(e, onCallNow) !== `completed`) return;
       let hours = Number(e.calculatedDurationHours) || 0;
+      e.type === `HotlineLogin` && (hours = Math.ceil(hours * 100) / 100);
       ((totals[e.type] = (totals[e.type] || 0) + hours),
         (totals.overall += hours));
     });
@@ -13251,6 +13334,14 @@ function ae() {
       setOnCallEndDate(e?.endDate || addCalendarDays(today, 13)),
       setOnCallError(``),
       h(`onCallSchedule`));
+  }
+  function editHotlineTemporaryLogin(e) {
+    (setEditingOnCallId(e.id),
+      setHotlineLoginDate(e.startDate || currentCentralInput().date),
+      setHotlineLoginTime(e.hotlineLoginTime || `00:00`),
+      setHotlineLoginEndTime(e.hotlineLoginEndTime || `00:05`),
+      setCategoryNote(e.comment || ``),
+      h(`hotlineTemporaryLogin`));
   }
   async function saveOnCallSchedule() {
     if (!e || !o || !onCallStartDate) return;
@@ -13337,23 +13428,51 @@ function ae() {
     {
       (ce(!0), ue(``));
       try {
-        await o.db
+        let activity =
+            t.activity === `FA/Co-Worker`
+              ? `Flight Attendant Support`
+              : t.activity,
+          isLoungeVisit =
+            activity === `Inflight Base` && t.detail === `Lounge Visit`,
+          loungeDate = isLoungeVisit ? centralDateKey(t.startedAt) : ``,
+          existingEntry = i.find((e) => e.id === t.id),
+          duplicateLoungeVisit =
+            isLoungeVisit &&
+            i.some(
+              (e) =>
+                e.id !== t.id &&
+                e.activity === `Inflight Base` &&
+                e.detail === `Lounge Visit` &&
+                centralDateKey(e.startedAt) === loungeDate,
+            );
+        if (duplicateLoungeVisit) {
+          let e = `A Lounge Visit has already been logged for this date. These hours cannot be logged again.`;
+          window.alert(e);
+          return !1;
+        }
+        let entryId =
+            isLoungeVisit && !existingEntry
+              ? `lounge-visit-${loungeDate}`
+              : t.id,
+          entry = {
+            ...t,
+            id: entryId,
+            activity,
+            firstName: e.firstName,
+            email: e.email,
+          },
+          entryRef = o.db
           .collection(`users`)
           .doc(e.uid)
           .collection(`entries`)
-          .doc(t.id)
-          .set({
-            ...t,
-            activity:
-              t.activity === `FA/Co-Worker`
-                ? `Flight Attendant Support`
-                : t.activity,
-            firstName: e.firstName,
-            email: e.email,
-          });
+          .doc(entryId);
+        await entryRef.set(entry);
         return !0;
-      } catch {
-        ue(`The entry could not be saved. Please try again.`);
+      } catch (e) {
+        if (e?.message === `duplicate-lounge-visit`) {
+          let e = `A Lounge Visit has already been logged for this date. These hours cannot be logged again.`;
+          window.alert(e);
+        } else ue(`The entry could not be saved. Please try again.`);
         return !1;
       } finally {
         ce(!1);
@@ -13390,6 +13509,25 @@ function ae() {
       ce(!1);
     }
   }
+  async function deleteQuickNote(t) {
+    if (
+      !e ||
+      !o ||
+      !window.confirm(
+        `Delete this unfinished note? It will not be logged or sent to Google Sheets.`,
+      )
+    ) return;
+    try {
+      await o.db
+        .collection(`users`)
+        .doc(e.uid)
+        .collection(`quickNotes`)
+        .doc(t.id)
+        .delete();
+    } catch {
+      ue(`The unfinished note could not be deleted.`);
+    }
+  }
   function finishQuickNote(e) {
     (setFinishingQuickNote(e),
       setCategoryNote(e.note || ``),
@@ -13405,7 +13543,7 @@ function ae() {
       ? (setSelectedDetail(t),
         setPendingClientDetail(t),
         setSalesforceCase(``),
-        h(`clientCase`))
+        continueClientFlow(t))
       : e === `Hotline` &&
     [`Base Leadership`, `CISM`, `Union`, `Professional Standards`].includes(t)
       ? (setSelectedDetail(t), h(`hotlineCallerReason`))
@@ -13428,20 +13566,32 @@ function ae() {
           let { date, time } = currentCentralInput();
           (setSelectedDetail(t), me(date), O(time), h(`loungeVisit`));
         })()
+      : e === `FADAP Team` && t === `Hotline Temporary Log in Request`
+      ? (() => {
+          let { date, time } = currentCentralInput();
+          (setSelectedDetail(t),
+            setEditingOnCallId(null),
+            setHotlineLoginDate(date),
+            setHotlineLoginTime(time),
+            setHotlineLoginEndTime(addMinutesToTime(time, 5)),
+            setCategoryNote(``),
+            h(`hotlineTemporaryLogin`));
+        })()
       : e === `Treatment Center` && t === `Client Discharge`
       ? (setSelectedDetail(t), h(`treatmentCenterDischarge`))
       : e === `Treatment Center` && t === `Client Issues`
       ? (setSelectedDetail(t), h(`treatmentCenterClientIssues`))
       : e === `FA/Co-Worker` && t === `Jumpseat Talk`
       ? Se(e, t, `In-person`)
-      : e === `Admin`
+      : e === `Other Team Work`
       ? Se(e, t)
       : usesContactMethod(e, t)
       ? (setSelectedDetail(t), h(`contactMethod`))
       : Se(
           e,
           t,
-          e === `Hotline` || (e === `Client` && t === `Discharge Call`)
+          e === `Hotline` ||
+            (e === `Client` && t === `Client Follow-up/Check-In`)
             ? `Call`
             : void 0,
         );
@@ -13452,12 +13602,18 @@ function ae() {
           setSelectedPositiveSubstances([]),
           setSelectedSubstances([]),
           h(`testPositive`))
-        : e === `Initial Follow-up`
+        : e === `Initial Follow-up` || e === `Relapse`
           ? (setSelectedTreatmentPlan(``),
             setSelectedTreatmentPlanTypes([]),
             h(`treatmentPlan`))
-          : e === `Going Into Treatment`
+          : e === `In Treatment`
             ? (setSelectedTreatmentLevel(``), h(`treatmentLevel`))
+          : e === `RSP`
+            ? (setSelectedRSPStatus(``), h(`rspStatus`))
+          : e === `Awaiting Admission to Treatment`
+            ? (setSelectedTreatmentLevel(``), h(`treatmentLevel`))
+          : e === `Ongoing Recovery`
+            ? h(`ongoingRecovery`)
           : detailParent === `Hotline`
             ? Se(`Client`, e, `Call`)
           : usesContactMethod(`Client`, e)
@@ -13465,11 +13621,36 @@ function ae() {
             : Se(
                 `Client`,
                 e,
-                e === `Discharge Call` ? `Call` : void 0,
+                e === `Client Follow-up/Check-In` ? `Call` : void 0,
               ));
   }
   function Se(e, t, n, r = {}) {
+    let timedEntry = v?.id ? v : r?.startedAt && r?.duration ? r : null,
+      stoppedTimer = timedEntry
+        ? {
+            ...(timedEntry.id ? { id: timedEntry.id } : {}),
+            startedAt: timedEntry.startedAt,
+            duration: timedEntry.duration,
+          }
+        : {},
+      stoppedTimerParts = timedEntry?.startedAt
+        ? Object.fromEntries(
+            new Intl.DateTimeFormat(`en-US`, {
+              timeZone: `America/Chicago`,
+              year: `numeric`,
+              month: `2-digit`,
+              day: `2-digit`,
+            })
+              .formatToParts(new Date(timedEntry.startedAt))
+              .filter((e) => e.type !== `literal`)
+              .map((e) => [e.type, e.value]),
+          )
+        : null,
+      stoppedTimerMinutes = timedEntry?.duration
+        ? Math.max(1, Math.round(timedEntry.duration / 60))
+        : null;
     (setPendingTimer({
+      ...stoppedTimer,
       activity: e,
       detail: t,
       ...(n ? { contactMethod: n } : {}),
@@ -13477,15 +13658,51 @@ function ae() {
     }),
       setPreviousCategoryStep(m),
       setCategoryNote(finishingQuickNote?.note || ``),
+      setOptionalTreatmentFacility(``),
       (!pendingClientDetail || e !== `Client`) &&
-        setSalesforceCase(finishingQuickNote?.salesforceCase || ``),
-      setCategoryHours(0),
-      setCategoryMinutes(n === `Text` ? 5 : 15),
+      setSalesforceCase(finishingQuickNote?.salesforceCase || ``),
+      setCategoryDate(
+        stoppedTimerParts
+          ? `${stoppedTimerParts.year}-${stoppedTimerParts.month}-${stoppedTimerParts.day}`
+          : currentCentralInput().date,
+      ),
+      setCategoryHours(
+        stoppedTimerMinutes === null ? 0 : Math.floor(stoppedTimerMinutes / 60),
+      ),
+      setCategoryMinutes(
+        stoppedTimerMinutes === null ? 5 : stoppedTimerMinutes % 60,
+      ),
+      h(`categoryEntry`));
+  }
+  function editHistoryEntry(e) {
+    let parts = Object.fromEntries(
+        new Intl.DateTimeFormat(`en-US`, {
+          timeZone: `America/Chicago`,
+          year: `numeric`,
+          month: `2-digit`,
+          day: `2-digit`,
+        })
+          .formatToParts(new Date(e.startedAt))
+          .filter((e) => e.type !== `literal`)
+          .map((e) => [e.type, e.value]),
+      ),
+      totalMinutes = Math.max(0, Math.floor((Number(e.duration) || 0) / 60));
+    (setEditingEntryId(e.id),
+      setPendingTimer({ ...e }),
+      setPreviousCategoryStep(null),
+      setCategoryNote(e.comment || ``),
+      setSalesforceCase(e.salesforceCase || ``),
+      setCategoryDate(`${parts.year}-${parts.month}-${parts.day}`),
+      setCategoryHours(Math.floor(totalMinutes / 60)),
+      setCategoryMinutes(totalMinutes % 60),
+      setOptionalTreatmentFacility(e.treatmentCenter || e.iopProgram || ``),
       h(`categoryEntry`));
   }
   function goBack() {
     if (m === `categoryEntry`) {
-      (setPendingTimer(null), h(previousCategoryStep || `detail`));
+      (setPendingTimer(null),
+        setEditingEntryId(null),
+        h(previousCategoryStep || (editingEntryId ? null : `detail`)));
       return;
     }
     if (m === `detail` && finishingQuickNote) {
@@ -13496,28 +13713,39 @@ function ae() {
       (_(detailParent), setDetailParent(null), h(`detail`));
       return;
     }
-    if (m === `contactMethod` && g === `Client` && pendingClientDetail) {
-      h(`clientCase`);
-      return;
-    }
     let previous = {
-      contactMethod: `detail`,
+      contactMethod: selectedDetail.includes(`SAP Completed:`)
+        ? `rspSap`
+        : selectedDetail.startsWith(`RSP —`)
+          ? `rspStatus`
+          : selectedDetail.startsWith(`Ongoing Recovery —`)
+            ? `ongoingRecovery`
+            : `detail`,
       reachOutRequestType: `detail`,
       hotlineFlightAttendant: `detail`,
       hotlineCallerReason: `detail`,
       treatmentCenterDischarge: `detail`,
       treatmentCenterClientIssues: `detail`,
       loungeVisit: `detail`,
+      hotlineTemporaryLogin: `detail`,
       clientCase: `detail`,
-      testPositive:
-        selectedDetail === `Initial Contact` ? `detail` : `clientCase`,
+      testPositive: `detail`,
       positiveSubstances:
         selectedTestPositive === `No` ? `substances` : `testPositive`,
       substances:
         selectedTestPositive === `Yes` ? `positiveSubstances` : `testPositive`,
-      treatmentPlan: `clientCase`,
+      treatmentPlan:
+        selectedDetail === `Initial Contact`
+          ? selectedTestPositive === `No` &&
+            selectedSubstances.includes(`Substance Abuse`)
+            ? `positiveSubstances`
+            : `substances`
+          : `detail`,
       treatmentPlanTypes: `treatmentPlan`,
-      treatmentLevel: `clientCase`,
+      ongoingRecovery: `detail`,
+      rspStatus: `detail`,
+      rspSap: `rspStatus`,
+      treatmentLevel: `detail`,
       treatmentCenter: `treatmentLevel`,
       iopTreatmentProgram: `treatmentLevel`,
       postTimerDetail: `postTimerActivity`,
@@ -13531,22 +13759,61 @@ function ae() {
       : (h(null), _(null), setFinishingQuickNote(null));
   }
   async function saveCategoryEntry() {
-    if (!pendingTimer) return;
+    if (!pendingTimer || !categoryDate) return;
     let duration = (categoryHours * 60 + categoryMinutes) * 60;
     if (duration <= 0) return;
+    let { time } = pendingTimer.startedAt
+        ? (() => {
+            let parts = Object.fromEntries(
+              new Intl.DateTimeFormat(`en-US`, {
+                timeZone: `America/Chicago`,
+                hour: `2-digit`,
+                minute: `2-digit`,
+                hourCycle: `h23`,
+              })
+                .formatToParts(new Date(pendingTimer.startedAt))
+                .filter((e) => e.type !== `literal`)
+                .map((e) => [e.type, e.value]),
+            );
+            return { time: `${parts.hour}:${parts.minute}` };
+          })()
+        : currentCentralInput(),
+      [hours, minutes] = time.split(`:`).map(Number);
     let saved = await be({
-      id: crypto.randomUUID(),
+      id: editingEntryId || crypto.randomUUID(),
       ...pendingTimer,
+      ...(pendingTimer.activity === `Client` &&
+      pendingTimer.detail === `In Treatment — Inpatient` &&
+      optionalTreatmentFacility
+        ? {
+            detail: `${pendingTimer.detail} — ${optionalTreatmentFacility}`,
+            treatmentCenter: optionalTreatmentFacility,
+          }
+        : {}),
+      ...(pendingTimer.activity === `Client` &&
+      [
+        `In Treatment — In IOP`,
+        `In Treatment — Intensive Out Patient (IOP)`,
+      ].includes(pendingTimer.detail) &&
+      optionalTreatmentFacility
+        ? {
+            detail: `${pendingTimer.detail} — ${optionalTreatmentFacility}`,
+            iopProgram: optionalTreatmentFacility,
+          }
+        : {}),
       comment: categoryNote.trim().slice(0, 200),
-      ...(pendingTimer.activity === `Admin` ||
+      ...(pendingTimer.activity === `Other Team Work` ||
       (pendingTimer.activity === `Union` &&
         pendingTimer.detail === `Timesheets`)
         ? {}
         : { salesforceCase: salesforceCase.trim().slice(0, 50) }),
-      startedAt: new Date().toISOString(),
+      startedAt: centralDateTime(categoryDate, hours, minutes),
       duration,
     });
     if (saved) {
+      if (v?.id && pendingTimer.id === v.id) {
+        (y(null), l(null), d(0), setShowStopwatch(!1));
+      }
       if (finishingQuickNote) {
         await o?.db
           .collection(`users`)
@@ -13558,9 +13825,12 @@ function ae() {
       (setPendingTimer(null),
       setCategoryNote(``),
       setSalesforceCase(``),
+      setCategoryDate(currentCentralInput().date),
+      setOptionalTreatmentFacility(``),
       setCategoryHours(0),
-      setCategoryMinutes(15),
+      setCategoryMinutes(5),
       setPendingClientDetail(``),
+      setEditingEntryId(null),
       setFinishingQuickNote(null),
       h(null),
       _(null));
@@ -13627,7 +13897,8 @@ function ae() {
     c && setShowStopwatch(!1);
   }
   function choosePostTimerActivity(e) {
-    (y((t) => ({ ...t, activity: e })), _(e), h(`postTimerDetail`));
+    (y((t) => ({ ...t, activity: e })),
+      ne[e] ? (setDetailParent(null), _(e), h(`detail`)) : Se(e));
   }
   function choosePostTimerDetail(e, t) {
     e === `Treatment Center` && t === `Client Discharge`
@@ -13644,7 +13915,7 @@ function ae() {
           detail: t,
           ...(e === `Hotline` ||
           (e === `Client` &&
-            (t === `Initial Contact` || t === `Discharge Call`))
+            (t === `Initial Contact` || t === `Client Follow-up/Check-In`))
             ? { contactMethod: `Call` }
             : {}),
         })),
@@ -13672,7 +13943,7 @@ function ae() {
           ? { contactMethod: `In-person` }
           : T === `Hotline` ||
         (T === `Client` &&
-          (de === `Initial Contact` || de === `Discharge Call`))
+          (de === `Initial Contact` || de === `Client Follow-up/Check-In`))
           ? { contactMethod: `Call` }
           : manualContactMethod
             ? { contactMethod: manualContactMethod }
@@ -13701,7 +13972,58 @@ function ae() {
       setManualPositiveSubstances([]),
       setManualSubstances([]),
       ge(0),
-      ve(15));
+      ve(5));
+  }
+  async function saveHotlineTemporaryLogin() {
+    let [startHours, startMinutes] = hotlineLoginTime.split(`:`).map(Number),
+      [endHours, endMinutes] = hotlineLoginEndTime.split(`:`).map(Number),
+      minutes =
+        endHours * 60 +
+        endMinutes -
+        (startHours * 60 + startMinutes);
+    if (minutes <= 0) minutes += 24 * 60;
+    if (!e || !o) return;
+    let startDateTime = centralDateTime(
+        hotlineLoginDate,
+        startHours,
+        startMinutes,
+      ),
+      endDate =
+        endHours * 60 + endMinutes <= startHours * 60 + startMinutes
+          ? addCalendarDays(hotlineLoginDate, 1)
+          : hotlineLoginDate,
+      endDateTime = centralDateTime(endDate, endHours, endMinutes),
+      id = editingOnCallId || crypto.randomUUID(),
+      existing = onCallSchedules.find((e) => e.id === id);
+    ce(!0);
+    try {
+      await o.db
+        .collection(`users`)
+        .doc(e.uid)
+        .collection(`onCallSchedules`)
+        .doc(id)
+        .set({
+          id,
+          userId: e.uid,
+          type: `HotlineLogin`,
+          startDate: hotlineLoginDate,
+          endDate,
+          startDateTime,
+          endDateTime,
+          timezone: `America/Chicago`,
+          calculatedDurationHours: Math.ceil((minutes / 60) * 100) / 100,
+          status: getOnCallStatus({ startDateTime, endDateTime }),
+          hotlineLoginTime,
+          hotlineLoginEndTime,
+          comment: categoryNote.trim().slice(0, 200),
+          createdAt: existing?.createdAt || new Date().toISOString(),
+        });
+      (h(null), setCategoryNote(``), setEditingOnCallId(null));
+    } catch {
+      ue(`The hotline login could not be saved. Please try again.`);
+    } finally {
+      ce(!1);
+    }
   }
   return n
     ? e
@@ -13723,9 +14045,9 @@ function ae() {
                     children: [
                       (0, x.jsx)(`p`, {
                         className: `eyebrow`,
-                        children: `Synced with Google`,
+                        children: `One hour at a time.`,
                       }),
-                      (0, x.jsx)(`h1`, { children: `FADAP Hours` }),
+                      (0, x.jsx)(`h1`, { children: `FADAP Daily` }),
                     ],
                   }),
                   (0, x.jsx)(`div`, {
@@ -13767,9 +14089,18 @@ function ae() {
                       (0, x.jsx)(`strong`, { children: e.firstName }),
                     ],
                   }),
-                  (0, x.jsx)(`button`, {
-                    onClick: () => o?.auth.signOut(),
-                    children: `Sign out`,
+                  (0, x.jsxs)(`div`, {
+                    className: `account-actions`,
+                    children: [
+                      (0, x.jsx)(`button`, {
+                        onClick: () => window.location.reload(),
+                        children: `↻ Refresh App`,
+                      }),
+                      (0, x.jsx)(`button`, {
+                        onClick: () => o?.auth.signOut(),
+                        children: `Sign out`,
+                      }),
+                    ],
                   }),
                 ],
               }),
@@ -13782,7 +14113,9 @@ function ae() {
                     children: [
                       (0, x.jsxs)(`div`, {
                         children: [
-                          (0, x.jsx)(`span`, { children: `On-Call Schedule` }),
+                          (0, x.jsx)(`span`, {
+                            children: `Add On-Call Schedule / 24-Hour Backup Here`,
+                          }),
                           (0, x.jsx)(`strong`, {
                             children: `${onCallTotals.overall} completed hours`,
                           }),
@@ -13807,6 +14140,9 @@ function ae() {
                             (0, x.jsxs)(`span`, {
                               children: [`Regional `, (0, x.jsx)(`b`, { children: `${onCallTotals.Regional}h` })],
                             }),
+                            (0, x.jsxs)(`span`, {
+                              children: [`Hotline Login `, (0, x.jsx)(`b`, { children: `${onCallTotals.HotlineLogin}h` })],
+                            }),
                           ],
                         }),
                         onCallSchedules.length
@@ -13825,7 +14161,9 @@ function ae() {
                                                 ? `2-Week Regional On-Call`
                                                 : t.type === `Backup`
                                                   ? `24 Hour Backup`
-                                                  : `WOC`,
+                                                  : t.type === `HotlineLogin`
+                                                    ? `Temporary Hotline Login`
+                                                    : `WOC`,
                                           }),
                                           (0, x.jsx)(`span`, {
                                             className: `on-call-status ${getOnCallStatus(t, onCallNow)}`,
@@ -13846,7 +14184,10 @@ function ae() {
                                         className: `on-call-actions`,
                                         children: [
                                           (0, x.jsx)(`button`, {
-                                            onClick: () => openOnCallSchedule(t),
+                                            onClick: () =>
+                                              t.type === `HotlineLogin`
+                                                ? editHotlineTemporaryLogin(t)
+                                                : openOnCallSchedule(t),
                                             children: `Edit`,
                                           }),
                                           (0, x.jsx)(`button`, {
@@ -14065,6 +14406,11 @@ function ae() {
                                         onClick: () => finishQuickNote(t),
                                         children: `Finish`,
                                       }),
+                                      (0, x.jsx)(`button`, {
+                                        className: `delete-draft-button`,
+                                        onClick: () => deleteQuickNote(t),
+                                        children: `Delete`,
+                                      }),
                                     ],
                                   },
                                   t.id,
@@ -14081,13 +14427,13 @@ function ae() {
                               children: [
                                 (0, x.jsxs)(`button`, {
                                   className: `manual-button admin-button`,
-                                  onClick: () => xe(`Admin`),
+                                  onClick: () => xe(`Other Team Work`),
                                   children: [
                                     (0, x.jsx)(`span`, { children: `⚙` }),
                                     (0, x.jsxs)(`div`, {
                                       children: [
                                         (0, x.jsx)(`strong`, {
-                                          children: `Admin`,
+                                          children: `Other Team Work`,
                                         }),
                                         (0, x.jsx)(`small`, {
                                           children: `Choose a category`,
@@ -14107,10 +14453,10 @@ function ae() {
                                     (0, x.jsxs)(`div`, {
                                       children: [
                                         (0, x.jsx)(`strong`, {
-                                          children: `Add time manually`,
+                                          children: `Manual Entry`,
                                         }),
                                         (0, x.jsx)(`small`, {
-                                          children: `Forgot to time`,
+                                          children: `Manual/Quick Entry`,
                                         }),
                                       ],
                                     }),
@@ -14513,9 +14859,19 @@ function ae() {
                                         }),
                                       ],
                                     }),
-                                    (0, x.jsx)(`strong`, {
-                                      className: `entry-duration`,
-                                      children: ie(t.duration),
+                                    (0, x.jsxs)(`div`, {
+                                      className: `entry-actions`,
+                                      children: [
+                                        (0, x.jsx)(`strong`, {
+                                          className: `entry-duration`,
+                                          children: ie(t.duration),
+                                        }),
+                                        (0, x.jsx)(`button`, {
+                                          className: `edit-entry-button`,
+                                          onClick: () => editHistoryEntry(t),
+                                          children: `Edit`,
+                                        }),
+                                      ],
                                     }),
                                     swipedEntryId === t.id &&
                                       (0, x.jsx)(`button`, {
@@ -14589,7 +14945,9 @@ function ae() {
                                 m === `postTreatmentCenterClientIssues`
                               ? `Treatment Center`
                             : m === `categoryEntry`
-                              ? pendingTimer?.activity
+                              ? editingEntryId
+                                ? `Editing history entry`
+                                : pendingTimer?.activity
                             : m === `postTimerActivity` || m === `postTimerDetail`
                               ? `Timer complete`
                             : m === `postReachOutRequestType`
@@ -14605,6 +14963,9 @@ function ae() {
                                 m === `substances` ||
                                 m === `treatmentPlan` ||
                                 m === `treatmentPlanTypes` ||
+                                m === `ongoingRecovery` ||
+                                m === `rspStatus` ||
+                                m === `rspSap` ||
                                 m === `treatmentLevel` ||
                                 m === `treatmentCenter` ||
                                 m === `iopTreatmentProgram`
@@ -14617,6 +14978,8 @@ function ae() {
                               ? `Central Time · Separate from work hours`
                             : m === `loungeVisit`
                               ? `Inflight Base · Central Time`
+                            : m === `hotlineTemporaryLogin`
+                              ? `FADAP Team · Central Time`
                               : `Missed an entry?`,
                       }),
                       (0, x.jsx)(`h2`, {
@@ -14646,7 +15009,9 @@ function ae() {
                                 m === `postTreatmentCenterClientIssues`
                               ? `Client Issues`
                             : m === `categoryEntry`
-                              ? pendingTimer?.detail || `Enter the time`
+                              ? editingEntryId
+                                ? `Edit Entry`
+                                : pendingTimer?.detail || `Enter the duration`
                             : m === `postTimerActivity`
                               ? `Connecting with`
                             : m === `postTimerDetail`
@@ -14679,8 +15044,14 @@ function ae() {
                               ? `Have a treatment plan at this time?`
                             : m === `treatmentPlanTypes`
                               ? `Select all that apply`
+                            : m === `ongoingRecovery`
+                              ? `What type of ongoing recovery?`
+                            : m === `rspStatus`
+                              ? `RSP Status`
+                            : m === `rspSap`
+                              ? `Have they completed the SAP?`
                             : m === `treatmentLevel`
-                              ? `Inpatient or IOP?`
+                              ? `Inpatient or Intensive Out Patient (IOP)?`
                             : m === `treatmentCenter`
                               ? `Select a treatment center`
                             : m === `iopTreatmentProgram`
@@ -14693,7 +15064,9 @@ function ae() {
                                 : `Add On-Call Schedule`
                             : m === `loungeVisit`
                               ? `Lounge Visit`
-                              : `Add time manually`,
+                            : m === `hotlineTemporaryLogin`
+                              ? `Temporary Hotline Login`
+                              : `Manual Entry`,
                       }),
                       m === `detail` &&
                         g &&
@@ -14721,7 +15094,46 @@ function ae() {
                             (0, x.jsxs)(
                               `button`,
                               {
-                                onClick: () => Se(g, selectedDetail, e),
+                                onClick: () =>
+                                  Se(
+                                    g,
+                                    selectedDetail,
+                                    e,
+                                    selectedDetail ===
+                                    `Hotline Temporary Log in Request`
+                                      ? {
+                                          hotlineLoginDate,
+                                          hotlineLoginTime,
+                                          hotlineLoginEndTime,
+                                          startedAt: centralDateTime(
+                                            hotlineLoginDate,
+                                            ...hotlineLoginTime
+                                              .split(`:`)
+                                              .map(Number),
+                                          ),
+                                          duration: (() => {
+                                            let [startHours, startMinutes] =
+                                                hotlineLoginTime
+                                                  .split(`:`)
+                                                  .map(Number),
+                                              [endHours, endMinutes] =
+                                                hotlineLoginEndTime
+                                                  .split(`:`)
+                                                  .map(Number),
+                                              minutes =
+                                                endHours * 60 +
+                                                endMinutes -
+                                                (startHours * 60 +
+                                                  startMinutes);
+                                            return (
+                                              (minutes <= 0
+                                                ? minutes + 24 * 60
+                                                : minutes) * 60
+                                            );
+                                          })(),
+                                        }
+                                      : {},
+                                  ),
                                 children: [
                                   e,
                                   (0, x.jsx)(`span`, { children: `›` }),
@@ -14780,6 +15192,82 @@ function ae() {
                                 },
                                 children: `Skip case number`,
                               }),
+                          ],
+                        }),
+                      m === `hotlineTemporaryLogin` &&
+                        (0, x.jsxs)(x.Fragment, {
+                          children: [
+                            (0, x.jsxs)(`div`, {
+                              className: `field-row`,
+                              children: [
+                                (0, x.jsxs)(`label`, {
+                                  children: [
+                                    (0, x.jsx)(`span`, {
+                                      children: `Login date`,
+                                    }),
+                                    (0, x.jsx)(`input`, {
+                                      type: `date`,
+                                      value: hotlineLoginDate,
+                                      onChange: (e) =>
+                                        setHotlineLoginDate(e.target.value),
+                                    }),
+                                  ],
+                                }),
+                              ],
+                            }),
+                            (0, x.jsxs)(`div`, {
+                              className: `field-row`,
+                              children: [
+                                (0, x.jsxs)(`label`, {
+                                  children: [
+                                    (0, x.jsx)(`span`, {
+                                      children: `Start time (CT)`,
+                                    }),
+                                    (0, x.jsx)(`input`, {
+                                      type: `time`,
+                                      value: hotlineLoginTime,
+                                      onChange: (e) =>
+                                        setHotlineLoginTime(e.target.value),
+                                    }),
+                                  ],
+                                }),
+                                (0, x.jsxs)(`label`, {
+                                  children: [
+                                    (0, x.jsx)(`span`, {
+                                      children: `End time (CT)`,
+                                    }),
+                                    (0, x.jsx)(`input`, {
+                                      type: `time`,
+                                      value: hotlineLoginEndTime,
+                                      onChange: (e) =>
+                                        setHotlineLoginEndTime(e.target.value),
+                                    }),
+                                  ],
+                                }),
+                              ],
+                            }),
+                            (0, x.jsx)(`label`, {
+                              className: `field-label`,
+                              children: `Notes`,
+                            }),
+                            (0, x.jsx)(`textarea`, {
+                              className: `comment-input notes-input`,
+                              maxLength: 200,
+                              value: categoryNote,
+                              onChange: (e) => setCategoryNote(e.target.value),
+                              placeholder: `Add notes (optional)`,
+                            }),
+                            (0, x.jsx)(`button`, {
+                              className: `save-button`,
+                              disabled:
+                                se ||
+                                !hotlineLoginDate ||
+                                !hotlineLoginTime ||
+                                !hotlineLoginEndTime ||
+                                hotlineLoginEndTime === hotlineLoginTime,
+                              onClick: saveHotlineTemporaryLogin,
+                              children: se ? `Saving…` : `Save entry`,
+                            }),
                           ],
                         }),
                       m === `reachOutRequestType` &&
@@ -14966,11 +15454,9 @@ function ae() {
                               onClick: () =>
                                 selectedTestPositive === `Yes`
                                   ? h(`substances`)
-                                  : Se(g, selectedDetail, `Call`, {
-                                      testPositive: selectedTestPositive,
-                                      substances: selectedPositiveSubstances,
-                                      supportNeeds: selectedSubstances,
-                                    }),
+                                  : (setSelectedTreatmentPlan(``),
+                                    setSelectedTreatmentPlanTypes([]),
+                                    h(`treatmentPlan`)),
                               children: `Continue`,
                             }),
                           ],
@@ -15013,14 +15499,9 @@ function ae() {
                                 selectedTestPositive === `No` &&
                                 selectedSubstances.includes(`Substance Abuse`)
                                   ? h(`positiveSubstances`)
-                                  : Se(g, selectedDetail, `Call`, {
-                                      testPositive: selectedTestPositive,
-                                      substances:
-                                        selectedTestPositive === `Yes`
-                                          ? selectedPositiveSubstances
-                                          : [],
-                                      supportNeeds: selectedSubstances,
-                                    }),
+                                  : (setSelectedTreatmentPlan(``),
+                                    setSelectedTreatmentPlanTypes([]),
+                                    h(`treatmentPlan`)),
                               children: `Continue`,
                             }),
                           ],
@@ -15029,15 +15510,29 @@ function ae() {
                         g === `Client` &&
                         (0, x.jsx)(`div`, {
                           className: `detail-options`,
-                          children: [`Inpatient`, `IOP`].map((e) =>
+                          children: [
+                            `Inpatient`,
+                            `Intensive Out Patient (IOP)`,
+                          ].map((e) =>
                             (0, x.jsxs)(
                               `button`,
                               {
                                 onClick: () => {
-                                  setSelectedTreatmentLevel(e);
-                                  e === `Inpatient`
-                                    ? h(`treatmentCenter`)
-                                    : h(`iopTreatmentProgram`);
+                                  let level =
+                                    e === `Intensive Out Patient (IOP)`
+                                      ? `IOP`
+                                      : e;
+                                  setSelectedTreatmentLevel(level);
+                                  selectedDetail === `In Treatment`
+                                    ? Se(
+                                        g,
+                                        `In Treatment — ${e}`,
+                                        void 0,
+                                        { treatmentLevel: level },
+                                      )
+                                    : e === `Inpatient`
+                                      ? h(`treatmentCenter`)
+                                      : h(`iopTreatmentProgram`);
                                 },
                                 children: [
                                   e,
@@ -15110,7 +15605,12 @@ function ae() {
                         g === `Client` &&
                         (0, x.jsx)(`div`, {
                           className: `detail-options`,
-                          children: [`Yes`, `No`, `Maybe`].map((e) =>
+                          children: [
+                            `Yes`,
+                            `No`,
+                            `Maybe`,
+                            `Declined Assistance`,
+                          ].map((e) =>
                             (0, x.jsxs)(
                               `button`,
                               {
@@ -15126,8 +15626,19 @@ function ae() {
                                             ? `Call`
                                             : void 0,
                                           {
-                                          treatmentPlanAtThisTime: e,
-                                          treatmentPlanTypes: [],
+                                            treatmentPlanAtThisTime: e,
+                                            treatmentPlanTypes: [],
+                                            ...(selectedDetail ===
+                                            `Initial Contact`
+                                              ? {
+                                                  testPositive:
+                                                    selectedTestPositive,
+                                                  substances:
+                                                    selectedPositiveSubstances,
+                                                  supportNeeds:
+                                                    selectedSubstances,
+                                                }
+                                              : {}),
                                           },
                                         ));
                                 },
@@ -15149,8 +15660,10 @@ function ae() {
                               children: [
                                 `Inpatient`,
                                 `Outpatient`,
+                                `Intensive Out Patient (IOP)`,
                                 `Therapy`,
-                                `AA`,
+                                `Supported Peer Recovery (AA etc)`,
+                                `Self-Directed Recovery`,
                               ].map((e) =>
                                 (0, x.jsx)(
                                   `button`,
@@ -15183,16 +15696,166 @@ function ae() {
                                   {
                                     treatmentPlanAtThisTime: selectedTreatmentPlan,
                                     treatmentPlanTypes: selectedTreatmentPlanTypes,
+                                    ...(selectedDetail === `Initial Contact`
+                                      ? {
+                                          testPositive: selectedTestPositive,
+                                          substances:
+                                            selectedPositiveSubstances,
+                                          supportNeeds: selectedSubstances,
+                                        }
+                                      : {}),
                                   },
                                 ),
                               children: `Continue`,
                             }),
                           ],
                         }),
+                      m === `ongoingRecovery` &&
+                        g === `Client` &&
+                        (0, x.jsx)(`div`, {
+                          className: `detail-options`,
+                          children: [
+                            `Therapy`,
+                            `Supported Peer Recovery (AA, etc)`,
+                            `Self-Directed Recovery`,
+                            `Other`,
+                          ].map((e) =>
+                            (0, x.jsxs)(
+                              `button`,
+                              {
+                                onClick: () => {
+                                  let detail = `Ongoing Recovery — ${e}`;
+                                  (setSelectedDetail(detail),
+                                    detailParent === `Hotline`
+                                      ? Se(`Client`, detail, `Call`)
+                                      : h(`contactMethod`));
+                                },
+                                children: [
+                                  e,
+                                  (0, x.jsx)(`span`, { children: `›` }),
+                                ],
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
+                      m === `rspStatus` &&
+                        g === `Client` &&
+                        (0, x.jsx)(`div`, {
+                          className: `detail-options`,
+                          children: [
+                            `Waiting to Get Accepted`,
+                            `In RSP`,
+                            `Waiting to Go Back Online`,
+                          ].map((e) =>
+                            (0, x.jsxs)(
+                              `button`,
+                              {
+                                onClick: () => {
+                                  (setSelectedRSPStatus(e),
+                                    setSelectedDetail(`RSP — ${e}`),
+                                    e === `Waiting to Go Back Online`
+                                      ? h(`rspSap`)
+                                      : h(`contactMethod`));
+                                },
+                                children: [
+                                  e,
+                                  (0, x.jsx)(`span`, { children: `›` }),
+                                ],
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
+                      m === `rspSap` &&
+                        g === `Client` &&
+                        (0, x.jsx)(`div`, {
+                          className: `detail-options`,
+                          children: [`Yes`, `No`].map((e) =>
+                            (0, x.jsxs)(
+                              `button`,
+                              {
+                                onClick: () => {
+                                  (setSelectedDetail(
+                                    `RSP — ${selectedRSPStatus} — SAP Completed: ${e}`,
+                                  ),
+                                    h(`contactMethod`));
+                                },
+                                children: [
+                                  e,
+                                  (0, x.jsx)(`span`, { children: `›` }),
+                                ],
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
                       m === `categoryEntry` &&
                         pendingTimer &&
                         (0, x.jsxs)(x.Fragment, {
                           children: [
+                            pendingTimer.activity === `Client` &&
+                              [
+                                `In Treatment — Inpatient`,
+                                `In Treatment — In IOP`,
+                                `In Treatment — Intensive Out Patient (IOP)`,
+                              ].includes(
+                                pendingTimer.detail,
+                              ) &&
+                              (0, x.jsxs)(x.Fragment, {
+                                children: [
+                                  (0, x.jsx)(`label`, {
+                                    className: `field-label`,
+                                    children:
+                                      pendingTimer.detail ===
+                                      `In Treatment — Inpatient`
+                                        ? `Treatment center (optional)`
+                                        : `IOP program (optional)`,
+                                  }),
+                                  (0, x.jsxs)(`select`, {
+                                    className: `comment-input`,
+                                    value: optionalTreatmentFacility,
+                                    onChange: (e) =>
+                                      setOptionalTreatmentFacility(
+                                        e.target.value,
+                                      ),
+                                    children: [
+                                      (0, x.jsx)(`option`, {
+                                        value: ``,
+                                        children: `No selection`,
+                                      }),
+                                      (pendingTimer.detail ===
+                                      `In Treatment — Inpatient`
+                                        ? inpatientTreatmentCenters
+                                        : iopTreatmentPrograms
+                                      ).map((e) =>
+                                        (0, x.jsx)(
+                                          `option`,
+                                          { value: e, children: e },
+                                          e,
+                                        ),
+                                      ),
+                                    ],
+                                  }),
+                                ],
+                              }),
+                            (0, x.jsx)(`label`, {
+                              className: `field-label`,
+                              children: (0, x.jsxs)(x.Fragment, {
+                                children: [
+                                  `Date `,
+                                  (0, x.jsx)(`em`, {
+                                    children: `(tap to change)`,
+                                  }),
+                                ],
+                              }),
+                            }),
+                            (0, x.jsx)(`input`, {
+                              className: `comment-input`,
+                              type: `date`,
+                              value: categoryDate,
+                              onChange: (e) => setCategoryDate(e.target.value),
+                            }),
                             (0, x.jsx)(`label`, {
                               className: `field-label`,
                               children: `Notes`,
@@ -15204,34 +15867,48 @@ function ae() {
                               onChange: (e) => setCategoryNote(e.target.value),
                               placeholder: `Add notes (optional)`,
                             }),
-                            pendingTimer.activity !== `Admin` &&
+                            pendingTimer.activity !== `Other Team Work` &&
                               (pendingTimer.activity !== `Union` ||
                                 pendingTimer.detail !== `Timesheets`) &&
-                              (pendingTimer.activity !== `Client` ||
-                                pendingTimer.detail === `Initial Contact`) &&
                               (0, x.jsxs)(x.Fragment, {
                                 children: [
                                   (0, x.jsx)(`label`, {
                                     className: `field-label`,
-                                    children:
-                                      pendingTimer.activity === `Client` &&
-                                      pendingTimer.detail === `Initial Contact`
-                                        ? `Salesforce Case # (optional — skip for now)`
-                                        : `Salesforce Case #`,
+                                    children: `Salesforce Case # (optional)`,
                                   }),
                                   (0, x.jsx)(`input`, {
                                     className: `comment-input`,
+                                    list: `past-salesforce-cases-entry`,
                                     maxLength: 50,
                                     value: salesforceCase,
                                     onChange: (e) =>
                                       setSalesforceCase(e.target.value),
                                     placeholder: `Enter case number (optional)`,
                                   }),
+                                  (0, x.jsx)(`datalist`, {
+                                    id: `past-salesforce-cases-entry`,
+                                    children: Array.from(
+                                      new Set(
+                                        i
+                                          .map((e) => e.salesforceCase?.trim())
+                                          .filter(Boolean),
+                                      ),
+                                    ).map((e) =>
+                                      (0, x.jsx)(`option`, { value: e }, e),
+                                    ),
+                                  }),
                                 ],
                               }),
                             (0, x.jsx)(`label`, {
                               className: `field-label`,
-                              children: `Time`,
+                              children: (0, x.jsxs)(x.Fragment, {
+                                children: [
+                                  `Duration `,
+                                  (0, x.jsx)(`em`, {
+                                    children: `(tap to change)`,
+                                  }),
+                                ],
+                              }),
                             }),
                             (0, x.jsxs)(`div`, {
                               className: `duration-fields`,
@@ -15242,10 +15919,42 @@ function ae() {
                                       type: `number`,
                                       min: `0`,
                                       value: categoryHours,
+                                      onFocus: (e) => e.target.select(),
                                       onChange: (e) =>
-                                        setCategoryHours(Number(e.target.value)),
+                                        setCategoryHours(
+                                          e.target.value === ``
+                                            ? ``
+                                            : Math.max(0, Number(e.target.value)),
+                                        ),
+                                      onBlur: () =>
+                                        setCategoryHours((e) =>
+                                          e === `` ? 0 : e,
+                                        ),
                                     }),
                                     (0, x.jsx)(`span`, { children: `hours` }),
+                                    (0, x.jsxs)(`div`, {
+                                      className: `duration-stepper`,
+                                      children: [
+                                        (0, x.jsx)(`button`, {
+                                          type: `button`,
+                                          "aria-label": `Increase hours`,
+                                          onClick: () =>
+                                            setCategoryHours((e) =>
+                                              Math.max(0, Number(e) || 0) + 1,
+                                            ),
+                                          children: `▲`,
+                                        }),
+                                        (0, x.jsx)(`button`, {
+                                          type: `button`,
+                                          "aria-label": `Decrease hours`,
+                                          onClick: () =>
+                                            setCategoryHours((e) =>
+                                              Math.max(0, (Number(e) || 0) - 1),
+                                            ),
+                                          children: `▼`,
+                                        }),
+                                      ],
+                                    }),
                                   ],
                                 }),
                                 (0, x.jsxs)(`label`, {
@@ -15254,11 +15963,53 @@ function ae() {
                                       type: `number`,
                                       min: `0`,
                                       max: `59`,
+                                      step: `5`,
                                       value: categoryMinutes,
+                                      onFocus: (e) => e.target.select(),
                                       onChange: (e) =>
-                                        setCategoryMinutes(Number(e.target.value)),
+                                        setCategoryMinutes(
+                                          e.target.value === ``
+                                            ? ``
+                                            : Math.min(
+                                                59,
+                                                Math.max(
+                                                  0,
+                                                  Number(e.target.value),
+                                                ),
+                                              ),
+                                        ),
+                                      onBlur: () =>
+                                        setCategoryMinutes((e) =>
+                                          e === `` ? 0 : e,
+                                        ),
                                     }),
                                     (0, x.jsx)(`span`, { children: `minutes` }),
+                                    (0, x.jsxs)(`div`, {
+                                      className: `duration-stepper`,
+                                      children: [
+                                        (0, x.jsx)(`button`, {
+                                          type: `button`,
+                                          "aria-label": `Increase minutes by 5`,
+                                          onClick: () =>
+                                            setCategoryMinutes((e) => {
+                                              let value = Number(e) || 0;
+                                              return value <= 54
+                                                ? value + 5
+                                                : value;
+                                            }),
+                                          children: `▲`,
+                                        }),
+                                        (0, x.jsx)(`button`, {
+                                          type: `button`,
+                                          "aria-label": `Decrease minutes by 5`,
+                                          onClick: () =>
+                                            setCategoryMinutes((e) =>
+                                              Math.max(0, (Number(e) || 0) - 5),
+                                            ),
+                                          children: `▼`,
+                                        }),
+                                      ],
+                                    }),
                                   ],
                                 }),
                               ],
@@ -15267,9 +16018,14 @@ function ae() {
                               className: `save-button category-save-button`,
                               disabled:
                                 se ||
+                                !categoryDate ||
                                 categoryHours * 60 + categoryMinutes <= 0,
                               onClick: saveCategoryEntry,
-                              children: se ? `Saving…` : `Save entry`,
+                              children: se
+                                ? `Saving…`
+                                : editingEntryId
+                                  ? `Save changes`
+                                  : `Save entry`,
                             }),
                           ],
                         }),
@@ -15698,7 +16454,7 @@ function ae() {
                                           onClick: () => {
                                             (setManualContactMethod(e),
                                               ge(0),
-                                              ve(e === `Text` ? 5 : 15));
+                                              ve(5));
                                           },
                                           children: e,
                                         },
@@ -15848,7 +16604,14 @@ function ae() {
                             }),
                             (0, x.jsx)(`label`, {
                               className: `field-label`,
-                              children: `Duration`,
+                              children: (0, x.jsxs)(x.Fragment, {
+                                children: [
+                                  `Duration `,
+                                  (0, x.jsx)(`em`, {
+                                    children: `(tap to change)`,
+                                  }),
+                                ],
+                              }),
                             }),
                             (0, x.jsxs)(`div`, {
                               className: `duration-fields`,
@@ -15859,10 +16622,40 @@ function ae() {
                                       type: `number`,
                                       min: `0`,
                                       value: he,
+                                      onFocus: (e) => e.target.select(),
                                       onChange: (e) =>
-                                        ge(Number(e.target.value)),
+                                        ge(
+                                          e.target.value === ``
+                                            ? ``
+                                            : Math.max(0, Number(e.target.value)),
+                                        ),
+                                      onBlur: () =>
+                                        ge((e) => (e === `` ? 0 : e)),
                                     }),
                                     (0, x.jsx)(`span`, { children: `hours` }),
+                                    (0, x.jsxs)(`div`, {
+                                      className: `duration-stepper`,
+                                      children: [
+                                        (0, x.jsx)(`button`, {
+                                          type: `button`,
+                                          "aria-label": `Increase hours`,
+                                          onClick: () =>
+                                            ge((e) =>
+                                              Math.max(0, Number(e) || 0) + 1,
+                                            ),
+                                          children: `▲`,
+                                        }),
+                                        (0, x.jsx)(`button`, {
+                                          type: `button`,
+                                          "aria-label": `Decrease hours`,
+                                          onClick: () =>
+                                            ge((e) =>
+                                              Math.max(0, (Number(e) || 0) - 1),
+                                            ),
+                                          children: `▼`,
+                                        }),
+                                      ],
+                                    }),
                                   ],
                                 }),
                                 (0, x.jsxs)(`label`, {
@@ -15871,11 +16664,51 @@ function ae() {
                                       type: `number`,
                                       min: `0`,
                                       max: `59`,
+                                      step: `5`,
                                       value: _e,
+                                      onFocus: (e) => e.target.select(),
                                       onChange: (e) =>
-                                        ve(Number(e.target.value)),
+                                        ve(
+                                          e.target.value === ``
+                                            ? ``
+                                            : Math.min(
+                                                59,
+                                                Math.max(
+                                                  0,
+                                                  Number(e.target.value),
+                                                ),
+                                              ),
+                                        ),
+                                      onBlur: () =>
+                                        ve((e) => (e === `` ? 0 : e)),
                                     }),
                                     (0, x.jsx)(`span`, { children: `minutes` }),
+                                    (0, x.jsxs)(`div`, {
+                                      className: `duration-stepper`,
+                                      children: [
+                                        (0, x.jsx)(`button`, {
+                                          type: `button`,
+                                          "aria-label": `Increase minutes by 5`,
+                                          onClick: () =>
+                                            ve((e) => {
+                                              let value = Number(e) || 0;
+                                              return value <= 54
+                                                ? value + 5
+                                                : value;
+                                            }),
+                                          children: `▲`,
+                                        }),
+                                        (0, x.jsx)(`button`, {
+                                          type: `button`,
+                                          "aria-label": `Decrease minutes by 5`,
+                                          onClick: () =>
+                                            ve((e) =>
+                                              Math.max(0, (Number(e) || 0) - 5),
+                                            ),
+                                          children: `▼`,
+                                        }),
+                                      ],
+                                    }),
                                   ],
                                 }),
                               ],
@@ -15905,8 +16738,10 @@ function ae() {
                         m !== `substances` &&
                         m !== `treatmentPlan` &&
                         m !== `treatmentPlanTypes` &&
+                        m !== `ongoingRecovery` &&
                         m !== `onCallSchedule` &&
                         m !== `loungeVisit` &&
+                        m !== `hotlineTemporaryLogin` &&
                         (0, x.jsxs)(x.Fragment, {
                           children: [
                             (0, x.jsxs)(`label`, {
@@ -15995,9 +16830,9 @@ function ae() {
             }),
             (0, x.jsx)(`p`, {
               className: `eyebrow`,
-              children: `Google-connected version`,
+              children: `One hour at a time.`,
             }),
-            (0, x.jsx)(`h1`, { children: `FADAP Hours` }),
+            (0, x.jsx)(`h1`, { children: `FADAP Daily` }),
             (0, x.jsx)(`p`, {
               children: `Your hours will stay private and synchronize between your phone and computer.`,
             }),
@@ -16024,7 +16859,7 @@ function ae() {
               alt: `FADAP`,
             }),
           }),
-          (0, x.jsx)(`h1`, { children: `FADAP Hours` }),
+          (0, x.jsx)(`h1`, { children: `FADAP Daily` }),
           (0, x.jsx)(`p`, { children: `Preparing secure sign-in…` }),
         ],
       });

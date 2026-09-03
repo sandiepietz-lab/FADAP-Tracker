@@ -1567,6 +1567,14 @@ h1 {
   font-weight: 800;
   box-shadow: 0 10px 24px #1978d430;
 }
+.account-help {
+  color: #60758b;
+  max-width: 280px;
+  margin: 12px auto 0;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
 .account-row {
   color: #5f7082;
   background: #edf6fd;
@@ -1603,17 +1611,39 @@ h1 {
 .account-actions button {
   padding: 8px 5px;
 }
+.preview-banner {
+  color: #674c08;
+  text-align: center;
+  background: #fff4cf;
+  border: 1px solid #eacb69;
+  border-radius: 10px;
+  margin: 10px 0 4px;
+  padding: 9px 12px;
+  font-size: 11px;
+  font-weight: 800;
+}
+.preview-button {
+  color: #1767ad;
+  background: #fff;
+  border: 2px solid #75b3e6;
+  border-radius: 12px;
+  width: min(100%, 330px);
+  margin-top: 12px;
+  padding: 13px 16px;
+  font-weight: 900;
+}
 .on-call-card {
   background: #f7fbfe;
-  border: 1px solid #d8e7f2;
+  border: 2px solid #75b3e6;
   border-radius: 16px;
   margin: 14px 0 2px;
   overflow: hidden;
+  box-shadow: 0 6px 18px #1767ad1f;
 }
 .on-call-toggle {
   color: #173c65;
   text-align: left;
-  background: transparent;
+  background: #eaf5fd;
   border: 0;
   align-items: center;
   justify-content: space-between;
@@ -1621,26 +1651,75 @@ h1 {
   padding: 14px 15px;
   display: flex;
 }
-.on-call-toggle div {
+.on-call-toggle > div:first-child {
   gap: 3px;
   display: grid;
 }
 .on-call-toggle span {
-  color: #5f7082;
+  color: #1767ad;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
 }
 .on-call-toggle strong {
-  font-size: 15px;
+  color: #425b73;
+  font-size: 11px;
 }
-.on-call-toggle b {
-  font-size: 20px;
+.on-call-view-buttons {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  display: flex;
+}
+.on-call-view-buttons button {
+  color: #285c8f;
+  background: #fff;
+  border: 1px solid #bcd8ed;
+  border-radius: 999px;
+  padding: 6px 8px;
+  font-size: 9px;
+  font-weight: 900;
+}
+.on-call-view-buttons button.selected {
+  color: #fff;
+  background: #1767ad;
+  border-color: #1767ad;
+}
+.on-call-view-buttons button.on-call-minimize {
+  color: #173c65;
+  background: #dcecf8;
+  border-color: #9fc7e5;
+}
+.on-call-view-buttons b {
+  color: inherit;
+  margin-left: 2px;
+  font-size: inherit;
 }
 .on-call-content {
   border-top: 1px solid #d8e7f2;
   padding: 13px 14px 14px;
+}
+.change-category-button {
+  color: #1767ad;
+  text-align: left;
+  background: #eaf5fd;
+  border: 1px solid #bcd8ed;
+  border-radius: 12px;
+  width: 100%;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 3px;
+}
+.change-category-button span {
+  font-size: 14px;
+  font-weight: 900;
+}
+.change-category-button strong {
+  color: #425b73;
+  font-size: 11px;
+  font-weight: 700;
 }
 .on-call-totals {
   grid-template-columns: repeat(3, 1fr);
@@ -1743,6 +1822,13 @@ h1 {
   padding: 11px;
   font-weight: 900;
 }
+.add-on-call-button.always-visible {
+  width: calc(100% - 28px);
+  margin: 0 14px 14px;
+  padding: 13px 11px;
+  font-size: 13px;
+  box-shadow: 0 5px 13px #1767ad2e;
+}
 .on-call-note {
   text-align: center;
   margin: 9px 4px 0;
@@ -1751,7 +1837,7 @@ h1 {
   margin-top: 18px;
 }
 .on-call-type-options {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 6px;
   margin-bottom: 17px;
   display: grid;

@@ -64,12 +64,11 @@ const memberSpreadsheetConfigs = {
   "gsteinkefadap@gmail.com": {},
   "jhollingsworthfadap@gmail.com": {},
   "jwallerfadap@gmail.com": {},
-  "jsmithfadap@gmail.com": {},
   "jnevantfadap@gmail.com": {},
   "klynchfadap@gmail.com": {},
   "kbullfadap@gmail.com": {},
   "llightfadap@gmail.com": {},
-  "mstidumfadap@gmail.com": {},
+  "mstidomfadap@gmail.com": {},
   "nbergrenfadap@gmail.com": {},
   "nrossfadap@gmail.com": {},
   "pspencefadap@gmail.com": {},
@@ -619,10 +618,11 @@ async function deleteEntry(sheets, targetSpreadsheetId, entryId) {
   return true;
 }
 
-function onCallRow(scheduleId, member, schedule) {
+function onCallRow(userId, scheduleId, member, schedule) {
   const completedAtSerial =
     new Date(schedule.endDateTime).getTime() / 86400000 + 25569;
   return [
+    userId,
     scheduleId,
     member.displayName || member.email.split("@")[0],
     member.email,
@@ -641,7 +641,7 @@ function onCallRow(scheduleId, member, schedule) {
 async function findOnCallRow(sheets, targetSpreadsheetId, scheduleId) {
   const { data } = await sheets.spreadsheets.values.get({
     spreadsheetId: targetSpreadsheetId,
-    range: "'On Call'!A:A",
+    range: "'On Call'!B:B",
   });
   const rowIndex = (data.values || []).findIndex((row) => row[0] === scheduleId);
   return rowIndex < 0 ? null : rowIndex + 1;
@@ -661,7 +661,7 @@ async function upsertOnCallSchedule(
   if (!rowNumber) {
     return sheets.spreadsheets.values.append({
       spreadsheetId: targetSpreadsheetId,
-      range: "'On Call'!A:L",
+      range: "'On Call'!A:M",
       valueInputOption: "USER_ENTERED",
       insertDataOption: "INSERT_ROWS",
       requestBody: { values: [row] },
@@ -669,7 +669,7 @@ async function upsertOnCallSchedule(
   }
   return sheets.spreadsheets.values.update({
     spreadsheetId: targetSpreadsheetId,
-    range: `'On Call'!A${rowNumber}:L${rowNumber}`,
+    range: `'On Call'!A${rowNumber}:M${rowNumber}`,
     valueInputOption: "USER_ENTERED",
     requestBody: { values: [row] },
   });
@@ -870,6 +870,7 @@ export const syncOnCallToGoogleSheets = onDocumentWritten(
     }
 
     const row = onCallRow(
+      userId,
       scheduleId,
       {
         email,

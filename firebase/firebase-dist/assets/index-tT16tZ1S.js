@@ -14709,7 +14709,7 @@ function ae() {
                                             e.name === `Quick Notes`
                                               ? `Save for later`
                                               : e.name === `Client`
-                                                ? `Going or in Salesforce`
+                                                ? `In Salesforce`
                                               : e.name === `FA/Co-Worker`
                                                 ? `Not in Salesforce`
                                               : e.name === `FADAP Team`
@@ -17189,8 +17189,14 @@ function ae() {
                         v &&
                         (0, x.jsx)(`div`, {
                           className: `detail-options`,
-                          children: te
-                            .filter((e) => e.name !== `Quick Notes`)
+                          children: [
+                            ...te.filter((e) => e.name !== `Quick Notes`),
+                            {
+                              name: `Other Team Work`,
+                              icon: `⚙`,
+                              className: `other-team-work`,
+                            },
+                          ]
                             .map((e) =>
                             (0, x.jsxs)(
                               `button`,

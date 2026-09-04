@@ -101,6 +101,30 @@ function getSheetsClient() {
   return google.sheets({ version: "v4", auth });
 }
 
+function isSheetsQuotaError(error) {
+  const status = Number(error?.response?.status || error?.code || 0);
+  const message = String(error?.message || "").toLowerCase();
+  return status === 429 || message.includes("quota exceeded") ||
+    message.includes("rate limit");
+}
+
+async function withSheetsQuotaRetry(operation, label) {
+  const delays = [2000, 4000, 8000, 16000, 30000];
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!isSheetsQuotaError(error) || attempt >= delays.length) throw error;
+      const delay = delays[attempt];
+      console.warn(
+        `Google Sheets quota reached for ${label}; retrying in ${delay / 1000}s ` +
+        `(attempt ${attempt + 2}/${delays.length + 1})`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
 function getGoogleWorkspaceClients() {
   const auth = new google.auth.GoogleAuth({
     scopes: [
@@ -596,14 +620,7 @@ async function deleteEntry(sheets, targetSpreadsheetId, entryId) {
   const rowNumber = await findEntryRow(sheets, targetSpreadsheetId, entryId);
   if (!rowNumber) return false;
 
-  const { data: spreadsheet } = await sheets.spreadsheets.get({
-    spreadsheetId: targetSpreadsheetId,
-  });
-  const entriesSheet = spreadsheet.sheets?.find(
-    (sheet) => sheet.properties?.title === "Entries",
-  );
-  const sheetId = entriesSheet?.properties?.sheetId;
-  if (sheetId === undefined) throw new Error("Entries sheet was not found.");
+  const sheetId = await getEntriesSheetId(sheets, targetSpreadsheetId);
 
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: targetSpreadsheetId,
@@ -814,19 +831,27 @@ export const deleteEntryFromGoogleSheets = onDocumentDeleted(
   {
     document: "users/{userId}/entries/{entryId}",
     region: "us-central1",
-    timeoutSeconds: 60,
+    timeoutSeconds: 180,
     memory: "256MiB",
+    retry: true,
   },
   async (event) => {
     const sheets = getSheetsClient();
     const entryId = event.params.entryId;
     const entry = event.data?.data() || {};
     const targetSpreadsheetIds = spreadsheetIdsForEntry(entry);
-    const results = await Promise.all(
-      targetSpreadsheetIds.map((id) => deleteEntry(sheets, id, entryId)),
-    );
+    const results = [];
+    for (const id of targetSpreadsheetIds) {
+      results.push(await withSheetsQuotaRetry(
+        () => deleteEntry(sheets, id, entryId),
+        `entry deletion ${entryId}`,
+      ));
+    }
     const caseDeleted = normalizeSalesforceCase(entry.salesforceCase)
-      ? await deleteSalesforceCaseEntry(sheets, entryId)
+      ? await withSheetsQuotaRetry(
+        () => deleteSalesforceCaseEntry(sheets, entryId),
+        `Salesforce case deletion ${entryId}`,
+      )
       : false;
     console.log(
       `deleteEntryFromGoogleSheets success: entryId=${entryId}, destinations=${results.filter(Boolean).length}, salesforceCaseDeleted=${caseDeleted}`,

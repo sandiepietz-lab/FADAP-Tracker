@@ -415,7 +415,12 @@ function entryNotes(entry) {
     ? `Hotline login: ${entry.hotlineLoginDate} ${entry.hotlineLoginTime}` +
       `${entry.hotlineLoginEndTime ? `–${entry.hotlineLoginEndTime}` : ""} CT`
     : "";
-  return [hotlineLogin, entry.comment || ""].filter(Boolean).join(" — ");
+  const dischargeDate = entry.dischargeDate
+    ? `Discharge date: ${entry.dischargeDate}`
+    : "";
+  return [hotlineLogin, entry.comment || "", dischargeDate]
+    .filter(Boolean)
+    .join(" — ");
 }
 
 function requireSalesforceCaseTrackerId() {

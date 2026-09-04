@@ -12713,11 +12713,12 @@ Error generating stack: ` +
       `Initial Follow-up`,
       `Awaiting Admission to Treatment`,
       `In Treatment`,
+      `Client Discharge`,
       `Ongoing Recovery`,
       `RSP`,
+      `Back Online`,
       `Relapse`,
       `Client Follow-up/Check-In`,
-      `Back Online`,
       `Terminated`,
       `Resigned`,
       `Other`,
@@ -12725,9 +12726,9 @@ Error generating stack: ` +
     "Treatment Center": [
       `New Client Outreach Request`,
       `Client Intake`,
-      `Client Update / Weekly Update`,
       `FMLA / Medical / Paperwork`,
-      `Client Discharge`,
+      `Client Update / Weekly Update`,
+      `Client Discharge Update / Call Request`,
       `Client Issues`,
     ],
     "Inflight Base": [
@@ -12845,6 +12846,7 @@ Error generating stack: ` +
     `Inflight Base`,
     `Other Team Work`,
   ],
+  committeeWorkTypes = [`New Hire Class Presentation`, `Other`],
   contactMethodsFor = (e) =>
     e === `Treatment Center`
       ? contactMethods.filter((e) => e !== `In-person`)
@@ -13015,8 +13017,10 @@ function ae() {
     [initialContactMethod, setInitialContactMethod] = (0, b.useState)(``),
     [selectedPositiveSubstances, setSelectedPositiveSubstances] = (0, b.useState)([]),
     [selectedSubstances, setSelectedSubstances] = (0, b.useState)([]),
+    [supportNeedsOther, setSupportNeedsOther] = (0, b.useState)(``),
     [selectedTreatmentPlan, setSelectedTreatmentPlan] = (0, b.useState)(``),
     [selectedTreatmentPlanTypes, setSelectedTreatmentPlanTypes] = (0, b.useState)([]),
+    [treatmentPlanOther, setTreatmentPlanOther] = (0, b.useState)(``),
     [selectedOngoingRecoveryTypes, setSelectedOngoingRecoveryTypes] = (0, b.useState)([]),
     [ongoingRecoveryOther, setOngoingRecoveryOther] = (0, b.useState)(``),
     [selectedTreatmentLevel, setSelectedTreatmentLevel] = (0, b.useState)(``),
@@ -13029,6 +13033,9 @@ function ae() {
       (0, b.useState)([]),
     [dischargeFollowUpCareOther, setDischargeFollowUpCareOther] =
       (0, b.useState)(``),
+    [dischargeDate, setDischargeDate] = (0, b.useState)(``),
+    [clientDischargeShortcut, setClientDischargeShortcut] =
+      (0, b.useState)(!1),
     [pendingTimer, setPendingTimer] = (0, b.useState)(null),
     [previousCategoryStep, setPreviousCategoryStep] = (0, b.useState)(null),
     [detailParent, setDetailParent] = (0, b.useState)(null),
@@ -13042,9 +13049,11 @@ function ae() {
     [categoryMinutes, setCategoryMinutes] = (0, b.useState)(5),
     [editingEntryId, setEditingEntryId] = (0, b.useState)(null),
     [swipedEntryId, setSwipedEntryId] = (0, b.useState)(null),
+    [historyEntryId, setHistoryEntryId] = (0, b.useState)(null),
     [historyPeriod, setHistoryPeriod] = (0, b.useState)(`currentMonth`),
     [dashboardRange, setDashboardRange] = (0, b.useState)(`month`),
     [dashboardCategory, setDashboardCategory] = (0, b.useState)(null),
+    [dashboardEntryId, setDashboardEntryId] = (0, b.useState)(null),
     [historyMonth, setHistoryMonth] = (0, b.useState)(() => {
       let e = new Date();
       return `${e.getFullYear()}-${String(e.getMonth() + 1).padStart(2, `0`)}`;
@@ -13341,6 +13350,22 @@ function ae() {
       categories: categoryNames.map((e) => categories[e]),
     };
   }, [i, dashboardRange, onCallNow]);
+  let dashboardDrilldownMethod = dashboardCategory?.startsWith(`Contact: `)
+      ? dashboardCategory.slice(9)
+      : null,
+    dashboardDrilldownTitle = dashboardDrilldownMethod
+      ? dashboardDrilldownMethod === `In-person`
+        ? `In-person entries`
+        : `${dashboardDrilldownMethod}s`
+      : dashboardCategory,
+    dashboardDrilldownEntries = dashboardCategory
+      ? dashboardDrilldownMethod
+        ? dashboardView.entries.filter(
+            (e) => e.contactMethod === dashboardDrilldownMethod,
+          )
+        : dashboardView.categories.find((e) => e.name === dashboardCategory)
+            ?.entries || []
+      : [];
   let onCallTotals = (0, b.useMemo)(() => {
     let totals = {
       WOC: 0,
@@ -13369,6 +13394,15 @@ function ae() {
         (e) => getOnCallStatus(e, onCallNow) === `completed`,
       ).length,
     },
+    tomorrowCentralDate = addCalendarDays(
+      centralDateKey(new Date(onCallNow)),
+      1,
+    ),
+    upcomingTomorrowCount = onCallSchedules.filter(
+      (e) =>
+        getOnCallStatus(e, onCallNow) === `scheduled` &&
+        e.startDate === tomorrowCentralDate,
+    ).length,
     visibleOnCallSchedules = onCallSchedules.filter(
       (e) => getOnCallStatus(e, onCallNow) === onCallView,
     );
@@ -13516,12 +13550,41 @@ function ae() {
                 e.activity === `Inflight Base` &&
                 e.detail === `Lounge Visit` &&
                 centralDateKey(e.startedAt) === loungeDate,
-            );
+            ),
+          similarRecentEntry =
+            !existingEntry &&
+            i.find((e) => {
+              let existingActivity =
+                  e.activity === `FA/Co-Worker`
+                    ? `Flight Attendant Support`
+                    : e.activity,
+                timeDifference = Math.abs(
+                  new Date(e.startedAt).getTime() -
+                    new Date(t.startedAt).getTime(),
+                );
+              return (
+                e.id !== t.id &&
+                existingActivity === activity &&
+                (e.detail || ``) === (t.detail || ``) &&
+                (e.contactMethod || ``) === (t.contactMethod || ``) &&
+                (e.salesforceCase || ``).trim().toLowerCase() ===
+                  (t.salesforceCase || ``).trim().toLowerCase() &&
+                Number.isFinite(timeDifference) &&
+                timeDifference <= 15 * 60 * 1e3
+              );
+            });
         if (duplicateLoungeVisit) {
           let e = `A Lounge Visit has already been logged for this date. These hours cannot be logged again.`;
           window.alert(e);
           return !1;
         }
+        if (
+          similarRecentEntry &&
+          !window.confirm(
+            `Possible duplicate: a similar ${activity} entry was logged within the last 15 minutes.\n\nSave this entry anyway?`,
+          )
+        )
+          return !1;
         let entryId =
             isLoungeVisit && !existingEntry
               ? `lounge-visit-${loungeDate}`
@@ -13620,6 +13683,10 @@ function ae() {
       ne[e] ? h(`detail`) : Se(e));
   }
   function chooseDetail(e, t) {
+    if (e === `Other Team Work` && t === `Committee Work`) {
+      (setSelectedDetail(t), setOtherDetailText(``), h(`committeeWork`));
+      return;
+    }
     if (
       t === `Other` &&
       (customOtherActivities.includes(e) || detailParent === `Hotline`)
@@ -13666,8 +13733,13 @@ function ae() {
             setCategoryNote(``),
             h(`hotlineTemporaryLogin`));
         })()
-      : e === `Treatment Center` && t === `Client Discharge`
-      ? (setSelectedDetail(t), h(`treatmentCenterDischarge`))
+      : e === `Treatment Center` &&
+          t === `Client Discharge Update / Call Request`
+      ? (setSelectedDetail(`Client Discharge`),
+        setSelectedTreatmentLevel(``),
+        setDischargeDate(``),
+        setClientDischargeShortcut(!1),
+        h(`treatmentCenterDischarge`))
       : e === `Treatment Center` && t === `Client Issues`
       ? (setSelectedDetail(t), h(`treatmentCenterClientIssues`))
       : e === `FA/Co-Worker` && t === `Jumpseat Talk`
@@ -13690,19 +13762,29 @@ function ae() {
         ? (setSelectedTestPositive(``),
           setSelectedPositiveSubstances([]),
           setSelectedSubstances([]),
+          setSupportNeedsOther(``),
           h(`testPositive`))
         : e === `Initial Follow-up` || e === `Relapse`
           ? (setSelectedTreatmentPlan(``),
             setSelectedTreatmentPlanTypes([]),
+            setTreatmentPlanOther(``),
             h(`treatmentPlan`))
           : e === `In Treatment`
             ? (setSelectedTreatmentLevel(``), h(`treatmentLevel`))
+          : e === `Client Discharge`
+            ? (setSelectedTreatmentLevel(``),
+              setDischargeDate(``),
+              setClientDischargeShortcut(!0),
+              _(`Treatment Center`),
+              h(`treatmentCenterDischargeLevel`))
           : e === `RSP`
             ? (setSelectedRSPStatus(``),
               setSelectedRSPCompletedTypes([]),
               setSelectedRSPRecoveryTypes([]),
               setRspRecoveryOther(``),
               h(`rspStatus`))
+          : e === `Back Online`
+            ? (setSelectedRSPCompletedTypes([]), h(`backOnlineCompleted`))
           : e === `Awaiting Admission to Treatment`
             ? (setSelectedTreatmentLevel(``), h(`treatmentLevel`))
           : e === `Ongoing Recovery`
@@ -13771,7 +13853,9 @@ function ae() {
       setCategoryDate(
         stoppedTimerParts
           ? `${stoppedTimerParts.year}-${stoppedTimerParts.month}-${stoppedTimerParts.day}`
-          : currentCentralInput().date,
+          : e === `Client` && t?.startsWith(`In Treatment —`)
+            ? ``
+            : currentCentralInput().date,
       ),
       setCategoryHours(
         stoppedTimerMinutes === null ? 0 : Math.floor(stoppedTimerMinutes / 60),
@@ -13799,6 +13883,7 @@ function ae() {
       setPreviousCategoryStep(null),
       setCategoryNote(e.comment || ``),
       setSalesforceCase(e.salesforceCase || ``),
+      setDischargeDate(e.dischargeDate || ``),
       setCategoryDate(`${parts.year}-${parts.month}-${parts.day}`),
       setCategoryHours(Math.floor(totalMinutes / 60)),
       setCategoryMinutes(totalMinutes % 60),
@@ -13840,15 +13925,22 @@ function ae() {
       reachOutRequestType: `detail`,
       hotlineFlightAttendant: `detail`,
       hotlineCallerReason: `detail`,
+      committeeWork: `detail`,
+      committeeWorkOther: `committeeWork`,
       hotlineSubcategoryOther: v
         ? `postHotlineUnion`
         : hotlineOtherParent === `Flight Attendant`
           ? `hotlineFlightAttendant`
           : `hotlineCallerReason`,
+      treatmentCenterDischargeLevel: `detail`,
       treatmentCenterDischarge: `detail`,
-      dischargeFollowUpCare: v
-        ? `postTreatmentCenterDischarge`
-        : `treatmentCenterDischarge`,
+      dischargeFollowUpCare: clientDischargeShortcut
+        ? v
+          ? `postTreatmentCenterDischargeLevel`
+          : `treatmentCenterDischargeLevel`
+        : v
+          ? `postTreatmentCenterDischarge`
+          : `treatmentCenterDischarge`,
       treatmentCenterClientIssues: `detail`,
       loungeVisit: `detail`,
       hotlineTemporaryLogin: `onCallSchedule`,
@@ -13871,6 +13963,7 @@ function ae() {
       ongoingRecovery: `detail`,
       rspStatus: `detail`,
       rspCompleted: `rspStatus`,
+      backOnlineCompleted: `detail`,
       rspRecovery: `rspCompleted`,
       rspSap: `rspStatus`,
       treatmentLevel: `detail`,
@@ -13879,6 +13972,7 @@ function ae() {
       postTimerDetail: `postTimerActivity`,
       postReachOutRequestType: `postTimerDetail`,
       postHotlineUnion: `postTimerDetail`,
+      postTreatmentCenterDischargeLevel: `postTimerDetail`,
       postTreatmentCenterDischarge: `postTimerDetail`,
       postTreatmentCenterClientIssues: `postTimerDetail`,
     }[m];
@@ -13929,12 +14023,16 @@ function ae() {
             iopProgram: optionalTreatmentFacility,
           }
         : {}),
-      comment: categoryNote.trim().slice(0, 200),
+      comment: categoryNote.trim().slice(0, 500),
       ...(pendingTimer.activity === `Other Team Work` ||
       (pendingTimer.activity === `Union` &&
         pendingTimer.detail === `Timesheets`)
         ? {}
         : { salesforceCase: salesforceCase.trim().slice(0, 50) }),
+      ...(pendingTimer.activity === `Treatment Center` &&
+      pendingTimer.detail?.startsWith(`Client Discharge`)
+        ? { dischargeDate }
+        : {}),
       startedAt: centralDateTime(categoryDate, hours, minutes),
       duration,
     });
@@ -14029,6 +14127,13 @@ function ae() {
       ne[e] ? (setDetailParent(null), _(e), h(`detail`)) : Se(e));
   }
   function choosePostTimerDetail(e, t) {
+    if (e === `Other Team Work` && t === `Committee Work`) {
+      (y((n) => ({ ...n, activity: e, detail: t })),
+        setSelectedDetail(t),
+        setOtherDetailText(``),
+        h(`committeeWork`));
+      return;
+    }
     if (t === `Other` && customOtherActivities.includes(e)) {
       (y((n) => ({
           ...n,
@@ -14041,8 +14146,30 @@ function ae() {
         h(`otherDetail`));
       return;
     }
-    e === `Treatment Center` && t === `Client Discharge`
-      ? (setSelectedDetail(t), h(`postTreatmentCenterDischarge`))
+    e === `Client` && t === `Back Online`
+      ? (setSelectedDetail(t),
+        setSelectedRSPCompletedTypes([]),
+        y((n) => ({ ...n, activity: e, detail: t })),
+        h(`backOnlineCompleted`))
+      : e === `Client` && t === `Client Discharge`
+      ? (setSelectedDetail(t),
+        setSelectedTreatmentLevel(``),
+        setDischargeDate(``),
+        setClientDischargeShortcut(!0),
+        _(`Treatment Center`),
+        y((n) => ({
+          ...n,
+          activity: `Treatment Center`,
+          detail: `Client Discharge`,
+        })),
+        h(`postTreatmentCenterDischargeLevel`))
+      : e === `Treatment Center` &&
+          t === `Client Discharge Update / Call Request`
+      ? (setSelectedDetail(`Client Discharge`),
+        setSelectedTreatmentLevel(``),
+        setDischargeDate(``),
+        setClientDischargeShortcut(!1),
+        h(`postTreatmentCenterDischarge`))
       : e === `Treatment Center` && t === `Client Issues`
       ? (setSelectedDetail(t), h(`postTreatmentCenterClientIssues`))
       : e === `Hotline` && t === `FA Reach Out Request`
@@ -14063,7 +14190,14 @@ function ae() {
   }
   async function we(e = ae) {
     if (!v) return;
-    let saved = await be({ ...v, comment: e.trim().slice(0, 30) });
+    let saved = await be({
+      ...v,
+      comment: e.trim().slice(0, 30),
+      ...(v.activity === `Treatment Center` &&
+      v.detail?.startsWith(`Client Discharge`)
+        ? { dischargeDate }
+        : {}),
+    });
     saved &&
       (y(null),
       l(null),
@@ -14169,7 +14303,7 @@ function ae() {
           status: getOnCallStatus({ startDateTime, endDateTime }),
           hotlineLoginTime,
           hotlineLoginEndTime,
-          comment: categoryNote.trim().slice(0, 200),
+          comment: categoryNote.trim().slice(0, 500),
           createdAt: existing?.createdAt || new Date().toISOString(),
         });
       (h(null), setCategoryNote(``), setEditingOnCallId(null));
@@ -14226,7 +14360,7 @@ function ae() {
                             ],
                           })
                         : (0, x.jsx)(`button`, {
-                            className: `history-link`,
+                            className: `history-link main-link`,
                             onClick: () => p(`timer`),
                             children: `← Main`,
                           }),
@@ -14277,9 +14411,6 @@ function ae() {
                           (0, x.jsx)(`span`, {
                             children: `WOC / 24 Hour Backup / Hotline`,
                           }),
-                          (0, x.jsx)(`strong`, {
-                            children: `${onCallTotals.overall} completed hours`,
-                          }),
                         ],
                       }),
                       (0, x.jsx)(`div`, {
@@ -14293,7 +14424,7 @@ function ae() {
                             `button`,
                             {
                               className:
-                                showOnCall && onCallView === e ? `selected` : ``,
+                                `${showOnCall && onCallView === e ? `selected ` : ``}${e === `active` && onCallScheduleCounts.active > 0 ? `active-now` : ``}${e === `scheduled` && upcomingTomorrowCount > 0 ? ` upcoming-soon` : ``}`.trim(),
                               onClick: () => (
                                 setOnCallView(e),
                                 setShowOnCall(!0)
@@ -14323,23 +14454,6 @@ function ae() {
                     (0, x.jsxs)(`div`, {
                       className: `on-call-content`,
                       children: [
-                        (0, x.jsxs)(`div`, {
-                          className: `on-call-totals`,
-                          children: [
-                            (0, x.jsxs)(`span`, {
-                              children: [`WOC `, (0, x.jsx)(`b`, { children: `${onCallTotals.WOC}h` })],
-                            }),
-                            (0, x.jsxs)(`span`, {
-                              children: [`Backup `, (0, x.jsx)(`b`, { children: `${onCallTotals.Backup}h` })],
-                            }),
-                            (0, x.jsxs)(`span`, {
-                              children: [`Regional `, (0, x.jsx)(`b`, { children: `${onCallTotals.Regional}h` })],
-                            }),
-                            (0, x.jsxs)(`span`, {
-                              children: [`Hotline Login `, (0, x.jsx)(`b`, { children: `${onCallTotals.HotlineLogin}h` })],
-                            }),
-                          ],
-                        }),
                         visibleOnCallSchedules.length
                           ? (0, x.jsx)(`div`, {
                               className: `on-call-list`,
@@ -14361,7 +14475,7 @@ function ae() {
                                                     : `WOC`,
                                           }),
                                           (0, x.jsx)(`span`, {
-                                            className: `on-call-status ${getOnCallStatus(t, onCallNow)}`,
+                                            className: `on-call-status ${getOnCallStatus(t, onCallNow)}${getOnCallStatus(t, onCallNow) === `scheduled` && t.startDate === tomorrowCentralDate ? ` upcoming-tomorrow` : ``}`,
                                             children: getOnCallStatus(
                                               t,
                                               onCallNow,
@@ -14422,25 +14536,70 @@ function ae() {
                       (0, x.jsxs)(`section`, {
                         className: `totals`,
                         children: [
-                          (0, x.jsxs)(`div`, {
-                            className: `total-card today`,
+                          (0, x.jsxs)(`button`, {
+                            className: `total-card today total-card-link`,
+                            onClick: () => {
+                              setDashboardRange(`today`);
+                              setDashboardCategory(null);
+                              setDashboardEntryId(null);
+                              p(`dashboard`);
+                            },
                             children: [
                               (0, x.jsx)(`span`, { children: `Today` }),
                               (0, x.jsx)(`strong`, { children: ie(ye.today) }),
+                              (0, x.jsx)(`small`, { children: `Activity hours` }),
                             ],
                           }),
-                          (0, x.jsxs)(`div`, {
-                            className: `total-card`,
+                          (0, x.jsxs)(`button`, {
+                            className: `total-card total-card-link`,
+                            onClick: () => {
+                              setDashboardRange(`week`);
+                              setDashboardCategory(null);
+                              setDashboardEntryId(null);
+                              p(`dashboard`);
+                            },
                             children: [
                               (0, x.jsx)(`span`, { children: `This week` }),
                               (0, x.jsx)(`strong`, { children: ie(ye.week) }),
+                              (0, x.jsx)(`small`, { children: `Activity hours` }),
                             ],
                           }),
-                          (0, x.jsxs)(`div`, {
-                            className: `total-card`,
+                          (0, x.jsxs)(`button`, {
+                            className: `total-card total-card-link`,
+                            onClick: () => {
+                              setDashboardRange(`month`);
+                              setDashboardCategory(null);
+                              setDashboardEntryId(null);
+                              p(`dashboard`);
+                            },
                             children: [
                               (0, x.jsx)(`span`, { children: `This month` }),
                               (0, x.jsx)(`strong`, { children: ie(ye.month) }),
+                              (0, x.jsx)(`small`, { children: `Activity hours` }),
+                            ],
+                          }),
+                          (0, x.jsxs)(`button`, {
+                            className: `total-card total-card-link coverage-total-card`,
+                            onClick: () => {
+                              setOnCallView(`completed`);
+                              setShowOnCall(!0);
+                              window.scrollTo({ top: 0, behavior: `smooth` });
+                            },
+                            children: [
+                              (0, x.jsx)(`span`, {
+                                children: `WOC / 24 / Hotline`,
+                              }),
+                              (0, x.jsx)(`strong`, {
+                                children: ie(
+                                  (onCallTotals.WOC +
+                                    onCallTotals.Backup +
+                                    onCallTotals.HotlineLogin) *
+                                    3600,
+                                ),
+                              }),
+                              (0, x.jsx)(`small`, {
+                                children: `Coverage hours`,
+                              }),
                             ],
                           }),
                         ],
@@ -14549,6 +14708,10 @@ function ae() {
                                           children:
                                             e.name === `Quick Notes`
                                               ? `Save for later`
+                                              : e.name === `Client`
+                                                ? `Going or in Salesforce`
+                                              : e.name === `FA/Co-Worker`
+                                                ? `Not in Salesforce`
                                               : e.name === `FADAP Team`
                                                 ? `Connecting with`
                                               : ne[e.name]
@@ -14639,7 +14802,7 @@ function ae() {
                                   ],
                                 }),
                                 (0, x.jsxs)(`button`, {
-                                  className: `manual-button`,
+                                  className: `manual-button manual-entry-button`,
                                   onClick: () => {
                                     (oe(``), h(`manual`));
                                   },
@@ -14736,6 +14899,7 @@ function ae() {
                                 onClick: () => {
                                   setDashboardRange(e);
                                   setDashboardCategory(null);
+                                  setDashboardEntryId(null);
                                 },
                                 children: t,
                               },
@@ -14749,26 +14913,36 @@ function ae() {
                               children: [
                                 (0, x.jsx)(`button`, {
                                   className: `dashboard-back`,
-                                  onClick: () => setDashboardCategory(null),
+                                  onClick: () => {
+                                    setDashboardCategory(null);
+                                    setDashboardEntryId(null);
+                                  },
                                   children: `← Dashboard overview`,
                                 }),
-                                (0, x.jsx)(`h3`, { children: dashboardCategory }),
+                                (0, x.jsx)(`h3`, {
+                                  children: dashboardDrilldownTitle,
+                                }),
                                 (0, x.jsx)(`p`, {
                                   children: dashboardView.label,
                                 }),
-                                dashboardView.categories.find(
-                                  (e) => e.name === dashboardCategory,
-                                )?.entries.length
+                                dashboardDrilldownEntries.length
                                   ? (0, x.jsx)(`div`, {
                                       className: `dashboard-detail-list`,
-                                      children: dashboardView.categories
-                                        .find((e) => e.name === dashboardCategory)
-                                        .entries.map((e) =>
+                                      children: dashboardDrilldownEntries.map((e) =>
                                           (0, x.jsxs)(
                                             `article`,
                                             {
+                                              className:
+                                                dashboardEntryId === e.id
+                                                  ? `expanded`
+                                                  : ``,
+                                              onClick: () =>
+                                                setDashboardEntryId((t) =>
+                                                  t === e.id ? null : e.id,
+                                                ),
                                               children: [
                                                 (0, x.jsxs)(`div`, {
+                                                  className: `dashboard-entry-summary`,
                                                   children: [
                                                     (0, x.jsx)(`strong`, {
                                                       children: e.detail || e.activity,
@@ -14786,8 +14960,72 @@ function ae() {
                                                   ],
                                                 }),
                                                 (0, x.jsx)(`strong`, {
+                                                  className: `dashboard-entry-duration`,
                                                   children: ie(e.duration),
                                                 }),
+                                                dashboardEntryId === e.id &&
+                                                  (0, x.jsxs)(`div`, {
+                                                    className: `dashboard-entry-details`,
+                                                    children: [
+                                                      (0, x.jsxs)(`p`, {
+                                                        children: [
+                                                          (0, x.jsx)(`b`, { children: `Category` }),
+                                                          (0, x.jsx)(`span`, { children: e.activity || `—` }),
+                                                        ],
+                                                      }),
+                                                      (0, x.jsxs)(`p`, {
+                                                        children: [
+                                                          (0, x.jsx)(`b`, { children: `Subcategory` }),
+                                                          (0, x.jsx)(`span`, { children: e.detail || `—` }),
+                                                        ],
+                                                      }),
+                                                      e.contactMethod &&
+                                                        (0, x.jsxs)(`p`, {
+                                                          children: [
+                                                            (0, x.jsx)(`b`, { children: `Contact method` }),
+                                                            (0, x.jsx)(`span`, { children: e.contactMethod }),
+                                                          ],
+                                                        }),
+                                                      e.salesforceCase &&
+                                                        (0, x.jsxs)(`p`, {
+                                                          children: [
+                                                            (0, x.jsx)(`b`, { children: `Case number` }),
+                                                            (0, x.jsx)(`span`, { children: e.salesforceCase }),
+                                                          ],
+                                                        }),
+                                                      e.dischargeDate &&
+                                                        (0, x.jsxs)(`p`, {
+                                                          children: [
+                                                            (0, x.jsx)(`b`, { children: `Discharge date` }),
+                                                            (0, x.jsx)(`span`, { children: e.dischargeDate }),
+                                                          ],
+                                                        }),
+                                                      e.testPositive &&
+                                                        (0, x.jsxs)(`p`, {
+                                                          children: [
+                                                            (0, x.jsx)(`b`, { children: `Test positive` }),
+                                                            (0, x.jsx)(`span`, { children: e.testPositive }),
+                                                          ],
+                                                        }),
+                                                      (e.positiveSubstances || e.substances)?.length > 0 &&
+                                                        (0, x.jsxs)(`p`, {
+                                                          children: [
+                                                            (0, x.jsx)(`b`, { children: `Substance type` }),
+                                                            (0, x.jsx)(`span`, {
+                                                              children: (e.positiveSubstances || e.substances).join(`, `),
+                                                            }),
+                                                          ],
+                                                        }),
+                                                      e.comment &&
+                                                        (0, x.jsxs)(`p`, {
+                                                          className: `dashboard-entry-notes`,
+                                                          children: [
+                                                            (0, x.jsx)(`b`, { children: `Notes` }),
+                                                            (0, x.jsx)(`span`, { children: e.comment }),
+                                                          ],
+                                                        }),
+                                                    ],
+                                                  }),
                                               ],
                                             },
                                             e.id,
@@ -14796,7 +15034,7 @@ function ae() {
                                     })
                                   : (0, x.jsx)(`p`, {
                                       className: `dashboard-empty`,
-                                      children: `No entries in this category for the selected period.`,
+                                      children: `No matching entries for the selected period.`,
                                     }),
                               ],
                             })
@@ -14815,18 +15053,25 @@ function ae() {
                                       ],
                                     }),
                                     ...[
-                                      [`Calls`, dashboardView.contactCounts.Call],
-                                      [`Texts`, dashboardView.contactCounts.Text],
-                                      [`Emails`, dashboardView.contactCounts.Email],
-                                      [`In-person`, dashboardView.contactCounts[`In-person`]],
-                                    ].map(([e, t]) =>
+                                      [`Calls`, dashboardView.contactCounts.Call, `Call`],
+                                      [`Texts`, dashboardView.contactCounts.Text, `Text`],
+                                      [`Emails`, dashboardView.contactCounts.Email, `Email`],
+                                      [`In-person`, dashboardView.contactCounts[`In-person`], `In-person`],
+                                    ].map(([e, t, n]) =>
                                       (0, x.jsxs)(
-                                        `div`,
+                                        `button`,
                                         {
-                                          className: `dashboard-metric`,
+                                          className: `dashboard-metric dashboard-metric-button`,
+                                          onClick: () => {
+                                            setDashboardCategory(`Contact: ${n}`);
+                                            setDashboardEntryId(null);
+                                          },
                                           children: [
                                             (0, x.jsx)(`span`, { children: e }),
                                             (0, x.jsx)(`strong`, { children: t }),
+                                            (0, x.jsx)(`small`, {
+                                              children: `View entries ›`,
+                                            }),
                                           ],
                                         },
                                         e,
@@ -14844,7 +15089,10 @@ function ae() {
                                       (0, x.jsxs)(
                                         `button`,
                                         {
-                                          onClick: () => setDashboardCategory(e.name),
+                                          onClick: () => {
+                                            setDashboardCategory(e.name);
+                                            setDashboardEntryId(null);
+                                          },
                                           children: [
                                             (0, x.jsxs)(`div`, {
                                               children: [
@@ -14962,7 +15210,11 @@ function ae() {
                               (0, x.jsxs)(
                                 `article`,
                                 {
-                                  className: `entry ${swipedEntryId === t.id ? `swiped` : ``}`,
+                                  className: `entry ${swipedEntryId === t.id ? `swiped` : ``}${historyEntryId === t.id ? ` expanded` : ``}`,
+                                  onClick: () =>
+                                    setHistoryEntryId((e) =>
+                                      e === t.id ? null : t.id,
+                                    ),
                                   onPointerDown: (e) => {
                                     swipeStartX.current = e.clientX;
                                   },
@@ -15063,15 +15315,103 @@ function ae() {
                                         }),
                                         (0, x.jsx)(`button`, {
                                           className: `edit-entry-button`,
-                                          onClick: () => editHistoryEntry(t),
+                                          onClick: (e) => {
+                                            e.stopPropagation();
+                                            editHistoryEntry(t);
+                                          },
                                           children: `Edit`,
                                         }),
                                       ],
                                     }),
+                                    historyEntryId === t.id &&
+                                      (0, x.jsxs)(`div`, {
+                                        className: `dashboard-entry-details history-entry-details`,
+                                        children: [
+                                          (0, x.jsxs)(`p`, {
+                                            children: [
+                                              (0, x.jsx)(`b`, { children: `Date of Contact` }),
+                                              (0, x.jsx)(`span`, {
+                                                children: new Date(t.startedAt).toLocaleString([], {
+                                                  month: `short`,
+                                                  day: `numeric`,
+                                                  year: `numeric`,
+                                                  hour: `numeric`,
+                                                  minute: `2-digit`,
+                                                }),
+                                              }),
+                                            ],
+                                          }),
+                                          (0, x.jsxs)(`p`, {
+                                            children: [
+                                              (0, x.jsx)(`b`, { children: `Category` }),
+                                              (0, x.jsx)(`span`, { children: t.activity || `—` }),
+                                            ],
+                                          }),
+                                          (0, x.jsxs)(`p`, {
+                                            children: [
+                                              (0, x.jsx)(`b`, { children: `Subcategory` }),
+                                              (0, x.jsx)(`span`, { children: t.detail || `—` }),
+                                            ],
+                                          }),
+                                          t.contactMethod &&
+                                            (0, x.jsxs)(`p`, {
+                                              children: [
+                                                (0, x.jsx)(`b`, { children: `Contact method` }),
+                                                (0, x.jsx)(`span`, { children: t.contactMethod }),
+                                              ],
+                                            }),
+                                          t.salesforceCase &&
+                                            (0, x.jsxs)(`p`, {
+                                              children: [
+                                                (0, x.jsx)(`b`, { children: `Case number` }),
+                                                (0, x.jsx)(`span`, { children: t.salesforceCase }),
+                                              ],
+                                            }),
+                                          (t.treatmentCenter || t.iopProgram) &&
+                                            (0, x.jsxs)(`p`, {
+                                              children: [
+                                                (0, x.jsx)(`b`, { children: `Treatment program` }),
+                                                (0, x.jsx)(`span`, { children: t.treatmentCenter || t.iopProgram }),
+                                              ],
+                                            }),
+                                          t.dischargeDate &&
+                                            (0, x.jsxs)(`p`, {
+                                              children: [
+                                                (0, x.jsx)(`b`, { children: `Discharge date` }),
+                                                (0, x.jsx)(`span`, { children: t.dischargeDate }),
+                                              ],
+                                            }),
+                                          t.testPositive &&
+                                            (0, x.jsxs)(`p`, {
+                                              children: [
+                                                (0, x.jsx)(`b`, { children: `Test positive` }),
+                                                (0, x.jsx)(`span`, { children: t.testPositive }),
+                                              ],
+                                            }),
+                                          (t.positiveSubstances || t.substances)?.length > 0 &&
+                                            (0, x.jsxs)(`p`, {
+                                              children: [
+                                                (0, x.jsx)(`b`, { children: `Substance type` }),
+                                                (0, x.jsx)(`span`, {
+                                                  children: (t.positiveSubstances || t.substances).join(`, `),
+                                                }),
+                                              ],
+                                            }),
+                                          t.comment &&
+                                            (0, x.jsxs)(`p`, {
+                                              className: `dashboard-entry-notes`,
+                                              children: [
+                                                (0, x.jsx)(`b`, { children: `Notes` }),
+                                                (0, x.jsx)(`span`, { children: t.comment }),
+                                              ],
+                                            }),
+                                        ],
+                                      }),
                                     swipedEntryId === t.id &&
                                       (0, x.jsx)(`button`, {
                                         className: `delete-button`,
-                                        onClick: async () => {
+                                        onClick: async (n) => {
+                                          n.stopPropagation();
                                           await o?.db
                                             .collection(`users`)
                                             .doc(e.uid)
@@ -15110,7 +15450,7 @@ function ae() {
                     e.target === e.currentTarget &&
                     h(null),
                   children: (0, x.jsxs)(`section`, {
-                    className: `modal`,
+                    className: `modal${m === `categoryEntry` ? ` final-entry-modal` : ``}`,
                     role: `dialog`,
                     "aria-modal": `true`,
                     children: [
@@ -15137,7 +15477,9 @@ function ae() {
                               ? selectedDetail
                             : m === `hotlineSubcategoryOther`
                               ? hotlineOtherParent
-                            : m === `treatmentCenterDischarge` ||
+                            : m === `treatmentCenterDischargeLevel` ||
+                                m === `postTreatmentCenterDischargeLevel` ||
+                                m === `treatmentCenterDischarge` ||
                                 m === `postTreatmentCenterDischarge`
                               ? `Client Discharge`
                             : m === `dischargeFollowUpCare`
@@ -15209,8 +15551,15 @@ function ae() {
                               ? `What do they need?`
                             : m === `hotlineCallerReason`
                               ? `What is the call about?`
+                            : m === `committeeWork`
+                              ? `Committee Work`
+                            : m === `committeeWorkOther`
+                              ? `Please describe Other`
                             : m === `hotlineSubcategoryOther`
                               ? `Please describe Other`
+                            : m === `treatmentCenterDischargeLevel` ||
+                                m === `postTreatmentCenterDischargeLevel`
+                              ? `Discharge from which program?`
                             : m === `treatmentCenterDischarge` ||
                                 m === `postTreatmentCenterDischarge`
                               ? `Discharge Details`
@@ -15252,17 +15601,19 @@ function ae() {
                             : m === `positiveSubstances`
                               ? `What is it for?`
                             : m === `substances`
-                              ? `Select all that apply`
+                              ? `Select all that apply (optional)`
                             : m === `treatmentPlan`
                               ? `Have a treatment plan at this time?`
                             : m === `treatmentPlanTypes`
-                              ? `Select all that apply`
+                              ? `Select all that apply (optional)`
                             : m === `ongoingRecovery`
                               ? `What type of ongoing recovery?`
                             : m === `rspStatus`
                               ? `RSP Status`
                             : m === `rspCompleted`
-                              ? `Completed? Select all that apply`
+                              ? `Completed? Select all that apply (optional)`
+                            : m === `backOnlineCompleted`
+                              ? `Completed? Select all that apply (optional)`
                             : m === `rspRecovery`
                               ? `What type of ongoing recovery?`
                             : m === `treatmentLevel`
@@ -15340,6 +15691,71 @@ function ae() {
                             }),
                           ],
                         }),
+                      m === `committeeWork` &&
+                        (0, x.jsx)(`div`, {
+                          className: `detail-options`,
+                          children: committeeWorkTypes.map((e) =>
+                            (0, x.jsxs)(
+                              `button`,
+                              {
+                                onClick: () => {
+                                  if (e === `Other`) {
+                                    (setOtherDetailText(``),
+                                      h(`committeeWorkOther`));
+                                    return;
+                                  }
+                                  let detail = `Committee Work — ${e}`;
+                                  v
+                                    ? (y((t) => ({
+                                        ...t,
+                                        activity: `Other Team Work`,
+                                        detail,
+                                      })),
+                                      h(`comment`))
+                                    : Se(`Other Team Work`, detail);
+                                },
+                                children: [
+                                  e,
+                                  (0, x.jsx)(`span`, { children: `›` }),
+                                ],
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
+                      m === `committeeWorkOther` &&
+                        (0, x.jsxs)(x.Fragment, {
+                          children: [
+                            (0, x.jsx)(`label`, {
+                              className: `field-label`,
+                              children: `Other committee work`,
+                            }),
+                            (0, x.jsx)(`input`, {
+                              className: `comment-input`,
+                              maxLength: 100,
+                              value: otherDetailText,
+                              onChange: (e) => setOtherDetailText(e.target.value),
+                              placeholder: `Enter the committee work type`,
+                              autoFocus: !0,
+                            }),
+                            (0, x.jsx)(`button`, {
+                              className: `save-button`,
+                              disabled: !otherDetailText.trim(),
+                              onClick: () => {
+                                let detail = `Committee Work — Other — ${otherDetailText.trim()}`;
+                                v
+                                  ? (y((e) => ({
+                                      ...e,
+                                      activity: `Other Team Work`,
+                                      detail,
+                                    })),
+                                    h(`comment`))
+                                  : Se(`Other Team Work`, detail);
+                              },
+                              children: `Continue`,
+                            }),
+                          ],
+                        }),
                       m === `contactMethod` &&
                         g &&
                         (0, x.jsx)(`div`, {
@@ -15393,6 +15809,20 @@ function ae() {
                                           })(),
                                         }
                                       : selectedDetail.startsWith(
+                                            `Client Discharge —`,
+                                          )
+                                        ? {
+                                            treatmentLevel:
+                                              selectedTreatmentLevel,
+                                          }
+                                      : selectedDetail.startsWith(
+                                            `Back Online — Completed:`,
+                                          )
+                                        ? {
+                                            completedTypes:
+                                              selectedRSPCompletedTypes,
+                                          }
+                                      : selectedDetail.startsWith(
                                             `Ongoing Recovery —`,
                                           )
                                         ? {
@@ -15436,14 +15866,22 @@ function ae() {
                             (0, x.jsx)(`datalist`, {
                               id: `past-salesforce-cases`,
                               children: Array.from(
-                                new Set(
-                                  i
-                                    .map((e) => e.salesforceCase?.trim())
-                                    .filter(Boolean),
-                                ),
-                              ).map((e) =>
-                                (0, x.jsx)(`option`, { value: e }, e),
-                              ),
+                                i.reduce((e, t) => {
+                                  let n = t.salesforceCase?.trim();
+                                  return n && !e.has(n) && e.set(n, t), e;
+                                }, new Map()).values(),
+                              )
+                                .slice(0, 12)
+                                .map((e) => {
+                                  let t = e.salesforceCase.trim(),
+                                    n = e.date || `Recent entry`,
+                                    i = e.detail || e.activity || `Client entry`;
+                                  return (0, x.jsx)(
+                                    `option`,
+                                    { value: t, label: `${n} · ${i}` },
+                                    t,
+                                  );
+                                }),
                             }),
                             (0, x.jsx)(`button`, {
                               className: `save-button`,
@@ -15523,7 +15961,7 @@ function ae() {
                             }),
                             (0, x.jsx)(`textarea`, {
                               className: `comment-input notes-input`,
-                              maxLength: 200,
+                              maxLength: 500,
                               value: categoryNote,
                               onChange: (e) => setCategoryNote(e.target.value),
                               placeholder: `Add notes (optional)`,
@@ -15651,6 +16089,34 @@ function ae() {
                             }),
                           ],
                         }),
+                      m === `treatmentCenterDischargeLevel` &&
+                        g === `Treatment Center` &&
+                        (0, x.jsx)(`div`, {
+                          className: `detail-options`,
+                          children: [`Inpatient`, `IOP`].map((e) =>
+                            (0, x.jsxs)(
+                              `button`,
+                              {
+                                onClick: () => {
+                                  setSelectedTreatmentLevel(e);
+                                  e === `IOP` || clientDischargeShortcut
+                                    ? (setSelectedDetail(
+                                        `Client Discharge — ${e} — Discharge Call`,
+                                      ),
+                                      setSelectedDischargeFollowUpCareTypes([]),
+                                      setDischargeFollowUpCareOther(``),
+                                      h(`dischargeFollowUpCare`))
+                                    : h(`treatmentCenterDischarge`);
+                                },
+                                children: [
+                                  e,
+                                  (0, x.jsx)(`span`, { children: `›` }),
+                                ],
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
                       m === `treatmentCenterDischarge` &&
                         g === `Treatment Center` &&
                         (0, x.jsx)(`div`, {
@@ -15660,7 +16126,11 @@ function ae() {
                               `button`,
                               {
                                 onClick: () => {
-                                  setSelectedDetail(`Client Discharge — ${e}`);
+                                  setSelectedDetail(
+                                    selectedTreatmentLevel
+                                      ? `Client Discharge — ${selectedTreatmentLevel} — ${e}`
+                                      : `Client Discharge — ${e}`,
+                                  );
                                   e === `Discharge Call`
                                     ? (setSelectedDischargeFollowUpCareTypes([]),
                                       setDischargeFollowUpCareOther(``),
@@ -15682,12 +16152,11 @@ function ae() {
                           children: [
                             (0, x.jsx)(`p`, {
                               className: `safe-reminder`,
-                              children: `Select all that apply`,
+                              children: `Select all that apply (optional)`,
                             }),
                             (0, x.jsx)(`div`, {
                               className: `quick-comments`,
                               children: [
-                                `IOP`,
                                 `Outpatient Online`,
                                 `Therapy`,
                                 `AA`,
@@ -15725,9 +16194,8 @@ function ae() {
                             (0, x.jsx)(`button`, {
                               className: `save-button`,
                               disabled:
-                                selectedDischargeFollowUpCareTypes.length === 0 ||
-                                (selectedDischargeFollowUpCareTypes.includes(`Other`) &&
-                                  !dischargeFollowUpCareOther.trim()),
+                                selectedDischargeFollowUpCareTypes.includes(`Other`) &&
+                                !dischargeFollowUpCareOther.trim(),
                               onClick: () => {
                                 let careTypes =
                                     selectedDischargeFollowUpCareTypes.map((e) =>
@@ -15735,21 +16203,30 @@ function ae() {
                                         ? `Other: ${dischargeFollowUpCareOther.trim()}`
                                         : e,
                                     ),
-                                  detail = `Client Discharge — Discharge Call — Follow-up Care: ${careTypes.join(` + `)}`;
+                                  careSummary = careTypes.length
+                                    ? careTypes.join(` + `)
+                                    : `Not selected`,
+                                  detail = selectedTreatmentLevel
+                                    ? `Client Discharge — ${selectedTreatmentLevel} — Discharge Call — Follow-up Care: ${careSummary}`
+                                    : `Client Discharge — Discharge Call — Follow-up Care: ${careSummary}`;
                                 v
                                   ? (y((e) => ({
                                       ...e,
                                       activity: `Treatment Center`,
-                                      detail,
-                                      contactMethod: `Call`,
-                                      dischargeFollowUpCareTypes: careTypes,
-                                    })),
+                                    detail,
+                                    contactMethod: `Call`,
+                                    dischargeFollowUpCareTypes: careTypes,
+                                    treatmentLevel: selectedTreatmentLevel,
+                                  })),
                                     h(`comment`))
                                   : Se(`Treatment Center`, detail, `Call`, {
-                                      dischargeFollowUpCareTypes: careTypes,
-                                    });
+                                    dischargeFollowUpCareTypes: careTypes,
+                                    treatmentLevel: selectedTreatmentLevel,
+                                  });
                               },
-                              children: `Continue`,
+                              children: selectedDischargeFollowUpCareTypes.length
+                                ? `Continue`
+                                : `Continue without adding`,
                             }),
                           ],
                         }),
@@ -15833,14 +16310,16 @@ function ae() {
                             }),
                             (0, x.jsx)(`button`, {
                               className: `save-button`,
-                              disabled: selectedPositiveSubstances.length === 0,
                               onClick: () =>
                                 selectedTestPositive === `Yes`
                                   ? h(`substances`)
                                   : (setSelectedTreatmentPlan(``),
                                     setSelectedTreatmentPlanTypes([]),
+                                    setTreatmentPlanOther(``),
                                     h(`treatmentPlan`)),
-                              children: `Continue`,
+                              children: selectedPositiveSubstances.length
+                                ? `Continue`
+                                : `Continue without adding`,
                             }),
                           ],
                         }),
@@ -15856,6 +16335,7 @@ function ae() {
                                 `Eating Disorder`,
                                 `Gambling`,
                                 `Sex Addiction`,
+                                `Other`,
                               ].map((e) =>
                                 (0, x.jsx)(
                                   `button`,
@@ -15875,15 +16355,26 @@ function ae() {
                                 ),
                               ),
                             }),
+                            selectedSubstances.includes(`Other`) &&
+                              (0, x.jsx)(`input`, {
+                                className: `comment-input`,
+                                value: supportNeedsOther,
+                                onChange: (e) =>
+                                  setSupportNeedsOther(e.target.value),
+                                placeholder: `Enter other support need`,
+                              }),
                             (0, x.jsx)(`button`, {
                               className: `save-button`,
-                              disabled: selectedSubstances.length === 0,
+                              disabled:
+                                selectedSubstances.includes(`Other`) &&
+                                !supportNeedsOther.trim(),
                               onClick: () =>
                                 selectedTestPositive === `No` &&
                                 selectedSubstances.includes(`Substance Abuse`)
                                   ? h(`positiveSubstances`)
                                   : (setSelectedTreatmentPlan(``),
                                     setSelectedTreatmentPlanTypes([]),
+                                    setTreatmentPlanOther(``),
                                     h(`treatmentPlan`)),
                               children: `Continue`,
                             }),
@@ -16001,6 +16492,7 @@ function ae() {
                                 onClick: () => {
                                   (setSelectedTreatmentPlan(e),
                                     setSelectedTreatmentPlanTypes([]),
+                                    setTreatmentPlanOther(``),
                                     e === `Yes`
                                       ? h(`treatmentPlanTypes`)
                                       : Se(
@@ -16024,7 +16516,11 @@ function ae() {
                                                   substances:
                                                     selectedPositiveSubstances,
                                                   supportNeeds:
-                                                    selectedSubstances,
+                                                    selectedSubstances.map((e) =>
+                                                      e === `Other`
+                                                        ? `Other: ${supportNeedsOther.trim()}`
+                                                        : e,
+                                                    ),
                                                 }
                                               : {}),
                                           },
@@ -16053,6 +16549,7 @@ function ae() {
                                 `Therapy`,
                                 `Supported Peer Recovery (AA etc)`,
                                 `Self-Directed Recovery`,
+                                `Other`,
                               ].map((e) =>
                                 (0, x.jsx)(
                                   `button`,
@@ -16072,9 +16569,19 @@ function ae() {
                                 ),
                               ),
                             }),
+                            selectedTreatmentPlanTypes.includes(`Other`) &&
+                              (0, x.jsx)(`input`, {
+                                className: `comment-input`,
+                                value: treatmentPlanOther,
+                                onChange: (e) =>
+                                  setTreatmentPlanOther(e.target.value),
+                                placeholder: `Enter other treatment plan`,
+                              }),
                             (0, x.jsx)(`button`, {
                               className: `save-button`,
-                              disabled: selectedTreatmentPlanTypes.length === 0,
+                              disabled:
+                                selectedTreatmentPlanTypes.includes(`Other`) &&
+                                !treatmentPlanOther.trim(),
                               onClick: () =>
                                 Se(
                                   g,
@@ -16086,7 +16593,12 @@ function ae() {
                                       : void 0,
                                   {
                                     treatmentPlanAtThisTime: selectedTreatmentPlan,
-                                    treatmentPlanTypes: selectedTreatmentPlanTypes,
+                                    treatmentPlanTypes:
+                                      selectedTreatmentPlanTypes.map((e) =>
+                                        e === `Other`
+                                          ? `Other: ${treatmentPlanOther.trim()}`
+                                          : e,
+                                      ),
                                     ...(usesInitialContactWorkflow(
                                     g,
                                     selectedDetail,
@@ -16095,12 +16607,18 @@ function ae() {
                                           testPositive: selectedTestPositive,
                                           substances:
                                             selectedPositiveSubstances,
-                                          supportNeeds: selectedSubstances,
+                                          supportNeeds: selectedSubstances.map((e) =>
+                                            e === `Other`
+                                              ? `Other: ${supportNeedsOther.trim()}`
+                                              : e,
+                                          ),
                                         }
                                       : {}),
                                   },
                                 ),
-                              children: `Continue`,
+                              children: selectedTreatmentPlanTypes.length
+                                ? `Continue`
+                                : `Continue without adding`,
                             }),
                           ],
                         }),
@@ -16110,7 +16628,7 @@ function ae() {
                           children: [
                             (0, x.jsx)(`p`, {
                               className: `safe-reminder`,
-                              children: `Select all that apply`,
+                              children: `Select all that apply (optional)`,
                             }),
                             (0, x.jsx)(`div`, {
                               className: `quick-comments`,
@@ -16149,9 +16667,8 @@ function ae() {
                             (0, x.jsx)(`button`, {
                               className: `save-button`,
                               disabled:
-                                selectedOngoingRecoveryTypes.length === 0 ||
-                                (selectedOngoingRecoveryTypes.includes(`Other`) &&
-                                  !ongoingRecoveryOther.trim()),
+                                selectedOngoingRecoveryTypes.includes(`Other`) &&
+                                !ongoingRecoveryOther.trim(),
                               onClick: () => {
                                 let recoveryTypes = selectedOngoingRecoveryTypes.map(
                                   (e) =>
@@ -16159,7 +16676,11 @@ function ae() {
                                       ? `Other: ${ongoingRecoveryOther.trim()}`
                                       : e,
                                 );
-                                let detail = `Ongoing Recovery — ${recoveryTypes.join(` + `)}`;
+                                let detail = `Ongoing Recovery — ${
+                                  recoveryTypes.length
+                                    ? recoveryTypes.join(` + `)
+                                    : `Not selected`
+                                }`;
                                 (setSelectedDetail(detail),
                                   detailParent === `Hotline`
                                     ? Se(`Client`, detail, `Call`, {
@@ -16167,7 +16688,9 @@ function ae() {
                                       })
                                     : h(`contactMethod`));
                               },
-                              children: `Continue`,
+                              children: selectedOngoingRecoveryTypes.length
+                                ? `Continue`
+                                : `Continue without adding`,
                             }),
                           ],
                         }),
@@ -16231,9 +16754,63 @@ function ae() {
                             }),
                             (0, x.jsx)(`button`, {
                               className: `save-button`,
-                              disabled: selectedRSPCompletedTypes.length === 0,
                               onClick: () => h(`rspRecovery`),
-                              children: `Continue`,
+                              children: selectedRSPCompletedTypes.length
+                                ? `Continue`
+                                : `Continue without adding`,
+                            }),
+                          ],
+                        }),
+                      m === `backOnlineCompleted` &&
+                        g === `Client` &&
+                        (0, x.jsxs)(x.Fragment, {
+                          children: [
+                            (0, x.jsx)(`p`, {
+                              className: `safe-reminder`,
+                              children: `Select all that apply (optional)`,
+                            }),
+                            (0, x.jsx)(`div`, {
+                              className: `quick-comments`,
+                              children: [`Inpatient`, `IOP`, `RSP`].map((e) =>
+                                (0, x.jsx)(
+                                  `button`,
+                                  {
+                                    className: selectedRSPCompletedTypes.includes(e)
+                                      ? `selected`
+                                      : ``,
+                                    onClick: () =>
+                                      setSelectedRSPCompletedTypes((t) =>
+                                        t.includes(e)
+                                          ? t.filter((t) => t !== e)
+                                          : [...t, e],
+                                      ),
+                                    children: e,
+                                  },
+                                  e,
+                                ),
+                              ),
+                            }),
+                            (0, x.jsx)(`button`, {
+                              className: `save-button`,
+                              onClick: () => {
+                                let detail = `Back Online — Completed: ${
+                                  selectedRSPCompletedTypes.length
+                                    ? selectedRSPCompletedTypes.join(` + `)
+                                    : `Not selected`
+                                }`;
+                                v
+                                  ? (y((e) => ({
+                                      ...e,
+                                      activity: `Client`,
+                                      detail,
+                                      completedTypes: selectedRSPCompletedTypes,
+                                    })),
+                                    h(`comment`))
+                                  : (setSelectedDetail(detail), h(`contactMethod`));
+                              },
+                              children: selectedRSPCompletedTypes.length
+                                ? `Continue`
+                                : `Continue without adding`,
                             }),
                           ],
                         }),
@@ -16243,7 +16820,7 @@ function ae() {
                           children: [
                             (0, x.jsx)(`p`, {
                               className: `safe-reminder`,
-                              children: `Select all that apply`,
+                              children: `Select all that apply (optional)`,
                             }),
                             (0, x.jsx)(`div`, {
                               className: `quick-comments`,
@@ -16287,16 +16864,23 @@ function ae() {
                             (0, x.jsx)(`button`, {
                               className: `save-button`,
                               disabled:
-                                selectedRSPRecoveryTypes.length === 0 ||
-                                (selectedRSPRecoveryTypes.includes(`Other`) &&
-                                  !rspRecoveryOther.trim()),
+                                selectedRSPRecoveryTypes.includes(`Other`) &&
+                                !rspRecoveryOther.trim(),
                               onClick: () => {
                                 let recoveryTypes = selectedRSPRecoveryTypes.map((e) =>
                                   e === `Other` ? `Other: ${rspRecoveryOther.trim()}` : e,
                                 );
                                 Se(
                                   g,
-                                  `RSP — ${selectedRSPStatus} — Completed: ${selectedRSPCompletedTypes.join(` + `)} — Ongoing Recovery: ${recoveryTypes.join(` + `)}`,
+                                  `RSP — ${selectedRSPStatus} — Completed: ${
+                                    selectedRSPCompletedTypes.length
+                                      ? selectedRSPCompletedTypes.join(` + `)
+                                      : `Not selected`
+                                  } — Ongoing Recovery: ${
+                                    recoveryTypes.length
+                                      ? recoveryTypes.join(` + `)
+                                      : `Not selected`
+                                  }`,
                                   detailParent === `Hotline` ? `Call` : void 0,
                                   {
                                     rspCompletedTypes: selectedRSPCompletedTypes,
@@ -16304,7 +16888,9 @@ function ae() {
                                   },
                                 );
                               },
-                              children: `Continue`,
+                              children: selectedRSPRecoveryTypes.length
+                                ? `Continue`
+                                : `Continue without adding`,
                             }),
                           ],
                         }),
@@ -16375,7 +16961,10 @@ function ae() {
                               className: `field-label`,
                               children: (0, x.jsxs)(x.Fragment, {
                                 children: [
-                                  `Date `,
+                                  pendingTimer.activity === `Client` &&
+                                  pendingTimer.detail?.startsWith(`In Treatment —`)
+                                    ? `Admission date `
+                                    : `Date of Contact `,
                                   (0, x.jsx)(`em`, {
                                     children: `(tap to change)`,
                                   }),
@@ -16383,7 +16972,7 @@ function ae() {
                               }),
                             }),
                             (0, x.jsx)(`input`, {
-                              className: `comment-input`,
+                              className: `comment-input date-contact-input`,
                               type: `date`,
                               value: categoryDate,
                               onChange: (e) => setCategoryDate(e.target.value),
@@ -16394,11 +16983,35 @@ function ae() {
                             }),
                             (0, x.jsx)(`textarea`, {
                               className: `comment-input notes-input`,
-                              maxLength: 200,
+                              maxLength: 500,
                               value: categoryNote,
                               onChange: (e) => setCategoryNote(e.target.value),
                               placeholder: `Add notes (optional)`,
                             }),
+                            pendingTimer.activity === `Treatment Center` &&
+                              pendingTimer.detail?.startsWith(`Client Discharge`) &&
+                              (0, x.jsxs)(x.Fragment, {
+                                children: [
+                                  (0, x.jsx)(`label`, {
+                                    className: `field-label`,
+                                    children: `Discharge date (optional)`,
+                                  }),
+                                  (0, x.jsx)(`input`, {
+                                    className: `comment-input`,
+                                    type: `date`,
+                                    value: dischargeDate,
+                                    onChange: (e) =>
+                                      setDischargeDate(e.target.value),
+                                  }),
+                                  (0, x.jsx)(`button`, {
+                                    type: `button`,
+                                    className: `skip-button`,
+                                    disabled: !dischargeDate,
+                                    onClick: () => setDischargeDate(``),
+                                    children: `Clear discharge date`,
+                                  }),
+                                ],
+                              }),
                             pendingTimer.activity !== `Other Team Work` &&
                               (pendingTimer.activity !== `Union` ||
                                 pendingTimer.detail !== `Timesheets`) &&
@@ -16420,14 +17033,25 @@ function ae() {
                                   (0, x.jsx)(`datalist`, {
                                     id: `past-salesforce-cases-entry`,
                                     children: Array.from(
-                                      new Set(
-                                        i
-                                          .map((e) => e.salesforceCase?.trim())
-                                          .filter(Boolean),
-                                      ),
-                                    ).map((e) =>
-                                      (0, x.jsx)(`option`, { value: e }, e),
-                                    ),
+                                      i.reduce((e, t) => {
+                                        let n = t.salesforceCase?.trim();
+                                        return n && !e.has(n) && e.set(n, t), e;
+                                      }, new Map()).values(),
+                                    )
+                                      .slice(0, 12)
+                                      .map((e) => {
+                                        let t = e.salesforceCase.trim(),
+                                          n = e.date || `Recent entry`,
+                                          i =
+                                            e.detail ||
+                                            e.activity ||
+                                            `Client entry`;
+                                        return (0, x.jsx)(
+                                          `option`,
+                                          { value: t, label: `${n} · ${i}` },
+                                          t,
+                                        );
+                                      }),
                                   }),
                                 ],
                               }),
@@ -16599,6 +17223,37 @@ function ae() {
                             ),
                           ),
                         }),
+                      m === `postTreatmentCenterDischargeLevel` &&
+                        v &&
+                        (0, x.jsx)(`div`, {
+                          className: `detail-options`,
+                          children: [`Inpatient`, `IOP`].map((e) =>
+                            (0, x.jsxs)(
+                              `button`,
+                              {
+                                onClick: () => {
+                                  setSelectedTreatmentLevel(e);
+                                  e === `IOP` || clientDischargeShortcut
+                                    ? (y((t) => ({
+                                        ...t,
+                                        activity: `Treatment Center`,
+                                        detail: `Client Discharge — ${e} — Discharge Call`,
+                                        treatmentLevel: e,
+                                      })),
+                                      setSelectedDischargeFollowUpCareTypes([]),
+                                      setDischargeFollowUpCareOther(``),
+                                      h(`dischargeFollowUpCare`))
+                                    : h(`postTreatmentCenterDischarge`);
+                                },
+                                children: [
+                                  e,
+                                  (0, x.jsx)(`span`, { children: `›` }),
+                                ],
+                              },
+                              e,
+                            ),
+                          ),
+                        }),
                       m === `postTreatmentCenterDischarge` &&
                         v &&
                         (0, x.jsx)(`div`, {
@@ -16611,7 +17266,10 @@ function ae() {
                                   y((t) => ({
                                     ...t,
                                     activity: `Treatment Center`,
-                                    detail: `Client Discharge — ${e}`,
+                                    detail: selectedTreatmentLevel
+                                      ? `Client Discharge — ${selectedTreatmentLevel} — ${e}`
+                                      : `Client Discharge — ${e}`,
+                                    treatmentLevel: selectedTreatmentLevel,
                                   }));
                                   e === `Discharge Call`
                                     ? (setSelectedDischargeFollowUpCareTypes([]),
@@ -16915,7 +17573,9 @@ function ae() {
                               children: [
                                 (0, x.jsxs)(`label`, {
                                   children: [
-                                    (0, x.jsx)(`span`, { children: `Date` }),
+                                    (0, x.jsx)(`span`, {
+                                      children: `Date of Contact`,
+                                    }),
                                     (0, x.jsx)(`input`, {
                                       type: `date`,
                                       value: pe,
@@ -17133,7 +17793,7 @@ function ae() {
                                       children: [
                                         (0, x.jsx)(`label`, {
                                           className: `field-label`,
-                                          children: `Select all that apply`,
+                                          children: `Select all that apply (optional)`,
                                         }),
                                         (0, x.jsx)(`div`, {
                                           className: `quick-comments`,
@@ -17174,7 +17834,9 @@ function ae() {
                               children: [
                                 (0, x.jsxs)(`label`, {
                                   children: [
-                                    (0, x.jsx)(`span`, { children: `Date` }),
+                                    (0, x.jsx)(`span`, {
+                                      children: `Date of Contact`,
+                                    }),
                                     (0, x.jsx)(`input`, {
                                       type: `date`,
                                       value: pe,
@@ -17314,8 +17976,12 @@ function ae() {
                         m !== `contactMethod` &&
                         m !== `reachOutRequestType` &&
                         m !== `hotlineFlightAttendant` &&
-                        m !== `hotlineCallerReason` &&
+                      m !== `hotlineCallerReason` &&
+                        m !== `committeeWork` &&
+                        m !== `committeeWorkOther` &&
                         m !== `hotlineSubcategoryOther` &&
+                        m !== `treatmentCenterDischargeLevel` &&
+                        m !== `postTreatmentCenterDischargeLevel` &&
                         m !== `treatmentCenterDischarge` &&
                         m !== `dischargeFollowUpCare` &&
                         m !== `treatmentCenterClientIssues` &&
@@ -17337,6 +18003,7 @@ function ae() {
                         m !== `treatmentPlanTypes` &&
                         m !== `ongoingRecovery` &&
                         m !== `rspCompleted` &&
+                        m !== `backOnlineCompleted` &&
                         m !== `rspRecovery` &&
                         m !== `onCallSchedule` &&
                         m !== `loungeVisit` &&
@@ -17357,6 +18024,31 @@ function ae() {
                               onChange: (e) => oe(e.target.value),
                               placeholder: `Type something short…`,
                             }),
+                            m === `comment` &&
+                              v?.activity === `Treatment Center` &&
+                              v.detail?.startsWith(`Client Discharge`) &&
+                              (0, x.jsxs)(x.Fragment, {
+                                children: [
+                                  (0, x.jsx)(`label`, {
+                                    className: `field-label`,
+                                    children: `Discharge date (optional)`,
+                                  }),
+                                  (0, x.jsx)(`input`, {
+                                    className: `comment-input`,
+                                    type: `date`,
+                                    value: dischargeDate,
+                                    onChange: (e) =>
+                                      setDischargeDate(e.target.value),
+                                  }),
+                                  (0, x.jsx)(`button`, {
+                                    type: `button`,
+                                    className: `skip-button`,
+                                    disabled: !dischargeDate,
+                                    onClick: () => setDischargeDate(``),
+                                    children: `Clear discharge date`,
+                                  }),
+                                ],
+                              }),
                             (0, x.jsx)(`p`, {
                               className: `safe-reminder`,
                               children: `Case numbers are allowed. Please don’t enter names or phone numbers.`,
@@ -17378,8 +18070,7 @@ function ae() {
                                   (!manualTestPositive ||
                                     ((manualTestPositive === `Yes` ||
                                       manualSubstances.includes(`Substance Abuse`)) &&
-                                      manualPositiveSubstances.length === 0) ||
-                                    manualSubstances.length === 0)),
+                                      manualPositiveSubstances.length === 0))),
                               onClick: m === `comment` ? () => we() : Te,
                               children: se ? `Saving…` : `Save entry`,
                             }),

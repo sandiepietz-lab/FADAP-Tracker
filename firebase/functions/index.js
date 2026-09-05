@@ -7,7 +7,9 @@ import {
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getFirestore, FieldPath } from "firebase-admin/firestore";
 import { google } from "googleapis";
+import { completedOnCallHours, completedWocDays, normalizeWocSchedule } from "./on-call-progress.js";
 
 initializeApp();
 
@@ -660,13 +662,131 @@ function onCallRow(userId, scheduleId, member, schedule) {
   ];
 }
 
+// Keep the original schedule for Active/Upcoming reports. Completed daily
+// rows feed existing SUMIFS formulas, which already select status=completed.
+// Zero the completed parent so the week can never be counted a second time.
+function onCallReportingRows(userId, scheduleId, member, schedule, now = Date.now()) {
+  schedule = normalizeWocSchedule(schedule);
+  const row = onCallRow(userId, scheduleId, member, schedule);
+  if (schedule.type !== "WOC") return [row];
+  const start = Date.parse(schedule.startDateTime);
+  const end = Date.parse(schedule.endDateTime);
+  row[10] = now < start ? "scheduled" : now >= end ? "completed" : "active";
+  if (row[10] === "completed") row[9] = 0;
+  return [row, ...completedWocDays(schedule, now).map((day) => {
+    const daily = [...row];
+    const completed = formatCentralDateTime(day.completedAt);
+    // Reporting dates are Central Time, matching the monthly report selectors.
+    const [year, month, date] = completed.date.split("-").map(Number);
+    daily[1] = `${scheduleId}:day:${day.day}`;
+    daily[5] = completed.date;
+    daily[6] = completed.date;
+    daily[8] = day.completedAt;
+    daily[9] = day.hours;
+    daily[10] = "completed";
+    daily[12] = Date.UTC(year, month - 1, date) / 86400000 + 25569;
+    return daily;
+  })];
+}
+
+async function reconcileOnCallRows(sheets, targetSpreadsheetId, scheduleId, rows) {
+  const { data } = await sheets.spreadsheets.values.get({
+    spreadsheetId: targetSpreadsheetId,
+    range: "'On Call'!A:C",
+  });
+  const existing = data.values || [];
+  const desired = new Map(rows.map((row) => [row[1], row]));
+  const sheetId = await getOnCallSheetId(sheets, targetSpreadsheetId);
+  const requests = [];
+  existing.forEach((row, index) => {
+    const id = [row[1], row[2]].find((value) =>
+      value === scheduleId || String(value || "").startsWith(`${scheduleId}:day:`));
+    if (!id) return;
+    const replacement = desired.get(id);
+    // Clear obsolete daily rows and any duplicates without shifting other rows.
+    requests.push({ updateCells: {
+      range: { sheetId, startRowIndex: index, endRowIndex: index + 1,
+        startColumnIndex: 0, endColumnIndex: 13 },
+      rows: [{ values: replacement ? replacement.map(onCallCellData) : [] }],
+      fields: "userEnteredValue,userEnteredFormat.numberFormat",
+    } });
+    desired.delete(id);
+  });
+  if (desired.size) requests.push({ appendCells: {
+    sheetId,
+    rows: [...desired.values()].map((row) => ({ values: row.map(onCallCellData) })),
+    fields: "userEnteredValue,userEnteredFormat.numberFormat",
+  } });
+  if (requests.length) await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: targetSpreadsheetId,
+    requestBody: { requests },
+  });
+}
+
 async function findOnCallRow(sheets, targetSpreadsheetId, scheduleId) {
   const { data } = await sheets.spreadsheets.values.get({
     spreadsheetId: targetSpreadsheetId,
-    range: "'On Call'!B:B",
+    range: "'On Call'!A:C",
   });
-  const rowIndex = (data.values || []).findIndex((row) => row[0] === scheduleId);
+  const rowIndex = (data.values || []).findIndex(
+    (row) => row[1] === scheduleId || row[2] === scheduleId,
+  );
   return rowIndex < 0 ? null : rowIndex + 1;
+}
+
+const onCallSheetIdCache = new Map();
+
+async function getOnCallSheetId(sheets, targetSpreadsheetId) {
+  const cached = onCallSheetIdCache.get(targetSpreadsheetId);
+  if (cached !== undefined) return cached;
+
+  const { data: spreadsheet } = await sheets.spreadsheets.get({
+    spreadsheetId: targetSpreadsheetId,
+    fields: "sheets(properties(sheetId,title))",
+  });
+  const onCallSheet = spreadsheet.sheets?.find(
+    (sheet) => sheet.properties?.title === "On Call",
+  );
+  const sheetId = onCallSheet?.properties?.sheetId;
+  if (sheetId === undefined) throw new Error("On Call sheet was not found.");
+  onCallSheetIdCache.set(targetSpreadsheetId, sheetId);
+  return sheetId;
+}
+
+function onCallCellData(value, columnIndex) {
+  if (columnIndex === 5 || columnIndex === 6) {
+    const [year, month, day = 1] = String(value).split("-").map(Number);
+    return {
+      userEnteredValue: {
+        numberValue: Date.UTC(year, month - 1, day) / 86400000 + 25569,
+      },
+      userEnteredFormat: {
+        numberFormat: { type: "DATE", pattern: "yyyy-mm-dd" },
+      },
+    };
+  }
+  if (columnIndex === 9 || columnIndex === 12) {
+    return { userEnteredValue: { numberValue: Number(value) || 0 } };
+  }
+  return { userEnteredValue: { stringValue: String(value || "") } };
+}
+
+async function appendOnCallSchedule(sheets, targetSpreadsheetId, row) {
+  const sheetId = await getOnCallSheetId(sheets, targetSpreadsheetId);
+  return sheets.spreadsheets.batchUpdate({
+    spreadsheetId: targetSpreadsheetId,
+    requestBody: {
+      requests: [{
+        appendCells: {
+          sheetId,
+          rows: [{
+            values: row.map((value, index) => onCallCellData(value, index)),
+          }],
+          fields: "userEnteredValue,userEnteredFormat.numberFormat",
+        },
+      }],
+    },
+  });
 }
 
 async function upsertOnCallSchedule(
@@ -681,13 +801,7 @@ async function upsertOnCallSchedule(
     scheduleId,
   );
   if (!rowNumber) {
-    return sheets.spreadsheets.values.append({
-      spreadsheetId: targetSpreadsheetId,
-      range: "'On Call'!A:M",
-      valueInputOption: "USER_ENTERED",
-      insertDataOption: "INSERT_ROWS",
-      requestBody: { values: [row] },
-    });
+    return appendOnCallSchedule(sheets, targetSpreadsheetId, row);
   }
   return sheets.spreadsheets.values.update({
     spreadsheetId: targetSpreadsheetId,
@@ -709,14 +823,7 @@ async function deleteOnCallSchedule(
   );
   if (!rowNumber) return false;
 
-  const { data: spreadsheet } = await sheets.spreadsheets.get({
-    spreadsheetId: targetSpreadsheetId,
-  });
-  const onCallSheet = spreadsheet.sheets?.find(
-    (sheet) => sheet.properties?.title === "On Call",
-  );
-  const sheetId = onCallSheet?.properties?.sheetId;
-  if (sheetId === undefined) throw new Error("On Call sheet was not found.");
+  const sheetId = await getOnCallSheetId(sheets, targetSpreadsheetId);
 
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: targetSpreadsheetId,
@@ -863,8 +970,11 @@ export const syncOnCallToGoogleSheets = onDocumentWritten(
   {
     document: "users/{userId}/onCallSchedules/{scheduleId}",
     region: "us-central1",
-    timeoutSeconds: 60,
+    timeoutSeconds: 180,
     memory: "256MiB",
+    retry: true,
+    maxInstances: 1,
+    concurrency: 1,
   },
   async (event) => {
     const userId = event.params.userId;
@@ -888,18 +998,24 @@ export const syncOnCallToGoogleSheets = onDocumentWritten(
     const targetSpreadsheetIds = requiredSpreadsheetIds(destinations);
 
     const sheets = getSheetsClient();
-    const after = event.data?.after;
+    // Events can arrive out of order: always reconcile the current schedule.
+    const after = await getFirestore().doc(
+      `users/${userId}/onCallSchedules/${scheduleId}`,
+    ).get();
     if (!after?.exists) {
-      await Promise.all(targetSpreadsheetIds.map((id) =>
-        deleteOnCallSchedule(sheets, id, scheduleId),
-      ));
+      for (const id of targetSpreadsheetIds) {
+        await withSheetsQuotaRetry(
+          () => reconcileOnCallRows(sheets, id, scheduleId, []),
+          `on-call deletion ${scheduleId}`,
+        );
+      }
       console.log(
         `syncOnCallToGoogleSheets deleted: scheduleId=${scheduleId}, destinations=${targetSpreadsheetIds.length}`,
       );
       return;
     }
 
-    const row = onCallRow(
+    const rows = onCallReportingRows(
       userId,
       scheduleId,
       {
@@ -908,12 +1024,62 @@ export const syncOnCallToGoogleSheets = onDocumentWritten(
       },
       after.data(),
     );
-    await Promise.all(targetSpreadsheetIds.map((id) =>
-      upsertOnCallSchedule(sheets, id, scheduleId, row),
-    ));
+    for (const id of targetSpreadsheetIds) {
+      await withSheetsQuotaRetry(
+        () => reconcileOnCallRows(sheets, id, scheduleId, rows),
+        `on-call sync ${scheduleId}`,
+      );
+    }
     console.log(
       `syncOnCallToGoogleSheets success: scheduleId=${scheduleId}, destinations=${targetSpreadsheetIds.length}`,
     );
+  },
+);
+
+export const refreshDailyWocHours = onSchedule(
+  {
+    // WOC starts on the hour. Check hourly so elapsed 24-hour anniversaries
+    // remain correct across Central Time daylight-saving changes.
+    schedule: "0 * * * *",
+    timeZone,
+    region: "us-central1",
+    timeoutSeconds: 300,
+    memory: "256MiB",
+    maxInstances: 1,
+    retryCount: 3,
+  },
+  async () => {
+    const db = getFirestore();
+    let cursor;
+    let updated = 0;
+    for (;;) {
+      let query = db.collectionGroup("onCallSchedules")
+        .orderBy(FieldPath.documentId()).limit(250);
+      if (cursor) query = query.startAfter(cursor);
+      const page = await query.get();
+      if (page.empty) break;
+      for (const doc of page.docs) {
+        if (doc.data().type !== "WOC") continue;
+        const changed = await db.runTransaction(async (transaction) => {
+          const current = await transaction.get(doc.ref);
+          if (!current.exists || current.data().type !== "WOC") return false;
+          const schedule = normalizeWocSchedule(current.data());
+          const now = Date.now();
+          const completedHours = completedOnCallHours(schedule, now);
+          const status = now < Date.parse(schedule.startDateTime) ? "scheduled"
+            : now >= Date.parse(schedule.endDateTime) ? "completed" : "active";
+          if (schedule.completedHours === completedHours && schedule.status === status &&
+              schedule.dailyHoursVersion === 2) return false;
+          transaction.update(doc.ref, { completedHours, status, dailyHoursVersion: 2,
+            startDateTime: schedule.startDateTime, endDateTime: schedule.endDateTime,
+            endDate: schedule.endDate, calculatedDurationHours: schedule.calculatedDurationHours });
+          return true;
+        });
+        if (changed) updated += 1;
+      }
+      cursor = page.docs.at(-1);
+    }
+    console.log(`refreshDailyWocHours success: updated=${updated}`);
   },
 );
 

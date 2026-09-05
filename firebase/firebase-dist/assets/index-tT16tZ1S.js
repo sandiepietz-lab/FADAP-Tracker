@@ -1,3 +1,4 @@
+import { completedOnCallHours, normalizeWocSchedule } from "./on-call-progress.js";
 var e = Object.create,
   t = Object.defineProperty,
   n = Object.getOwnPropertyDescriptor,
@@ -13180,6 +13181,18 @@ function ae() {
         );
     }, [e, o]),
     (0, b.useEffect)(() => {
+      if (previewMode && [`localhost`, `127.0.0.1`].includes(window.location.hostname) &&
+          new URLSearchParams(window.location.search).has(`wocDays`)) {
+        const days = Math.max(0, Math.min(6, Number(new URLSearchParams(window.location.search).get(`wocDays`)) || 0));
+        const sample = normalizeWocSchedule({
+          id: `local-woc-demo`, type: `WOC`, startDate: `2026-08-31`,
+        });
+        setOnCallNow(Math.min(Date.parse(sample.endDateTime), Date.parse(sample.startDateTime) + days * 86400000));
+        setOnCallSchedules([{ ...sample, status: days >= 6 ? `completed` : `active` }]);
+        setShowOnCall(!0);
+        setOnCallView(days >= 6 ? `completed` : `active`);
+        return;
+      }
       if (!e || !ee.includes(e.email) || !o) {
         setOnCallSchedules([]);
         return;
@@ -13192,7 +13205,7 @@ function ae() {
           (e) => {
             setOnCallSchedules(
               e.docs
-                .map((e) => e.data())
+                .map((e) => normalizeWocSchedule(e.data()))
                 .sort((e, t) => t.startDateTime.localeCompare(e.startDateTime)),
             );
           },
@@ -13200,11 +13213,13 @@ function ae() {
         );
     }, [e, o]),
     (0, b.useEffect)(() => {
+      if (previewMode && [`localhost`, `127.0.0.1`].includes(window.location.hostname) &&
+          new URLSearchParams(window.location.search).has(`wocDays`)) return;
       let e = window.setInterval(() => setOnCallNow(Date.now()), 6e4);
       return () => clearInterval(e);
-    }, []),
+    }, [previewMode]),
     (0, b.useEffect)(() => {
-      if (!e || !o || !onCallSchedules.length) return;
+      if (previewMode || !e || !o || !onCallSchedules.length) return;
       onCallSchedules.forEach((t) => {
         let status = getOnCallStatus(t, onCallNow);
         status !== t.status &&
@@ -13375,8 +13390,7 @@ function ae() {
       overall: 0,
     };
     onCallSchedules.forEach((e) => {
-      if (getOnCallStatus(e, onCallNow) !== `completed`) return;
-      let hours = Number(e.calculatedDurationHours) || 0;
+      let hours = completedOnCallHours(e, onCallNow);
       e.type === `HotlineLogin` && (hours = Math.ceil(hours * 100) / 100);
       ((totals[e.type] = (totals[e.type] || 0) + hours),
         (totals.overall += hours));
@@ -13431,7 +13445,7 @@ function ae() {
     if (!e || !o || !onCallStartDate) return;
     let endDate =
         onCallType === `WOC`
-          ? addCalendarDays(onCallStartDate, 7)
+          ? addCalendarDays(onCallStartDate, 6)
           : onCallType === `Backup`
             ? onCallStartDate
             : onCallEndDate,
@@ -13452,9 +13466,9 @@ function ae() {
       endDateTime,
       calculatedDurationHours;
     if (type === `WOC`) {
-      ((startDateTime = centralDateTime(onCallStartDate, 10, 0)),
-        (endDateTime = centralDateTime(endDate, 10, 0)),
-        (calculatedDurationHours = 168));
+      ((startDateTime = centralDateTime(onCallStartDate, 12, 0)),
+        (endDateTime = centralDateTime(endDate, 11, 59)),
+        (calculatedDurationHours = 144));
     } else if (type === `Backup`) {
       ((startDateTime = centralDateTime(onCallStartDate, 0, 0)),
         (endDateTime = centralDateTime(onCallStartDate, 23, 59)),
@@ -13513,6 +13527,10 @@ function ae() {
     }
   }
   async function deleteOnCallSchedule(t) {
+    if (previewMode) {
+      window.alert(`Preview mode only — nothing was deleted.`);
+      return;
+    }
     if (!e || !o || !window.confirm(`Delete this ${t.type} schedule?`)) return;
     try {
       await o.db
@@ -14485,7 +14503,7 @@ function ae() {
                                             children: `${formatCentralDateTime(t.startDateTime)} – ${formatCentralDateTime(t.endDateTime)}`,
                                           }),
                                           (0, x.jsx)(`small`, {
-                                            children: `${t.calculatedDurationHours} scheduled hours`,
+                                            children: `${completedOnCallHours(t, onCallNow)} completed / ${t.calculatedDurationHours} scheduled hours`,
                                           }),
                                         ],
                                       }),
@@ -14522,7 +14540,7 @@ function ae() {
                             }),
                         (0, x.jsx)(`p`, {
                           className: `on-call-note`,
-                          children: `On-call totals are separate from normal activity hours and count only after each scheduled block ends. Times use Central Time.`,
+                          children: `WOC hours count after each completed 24 hours. The total is 144 hours. Times use Central Time.`,
                         }),
                       ],
                     }),
@@ -17549,7 +17567,7 @@ function ae() {
                               className: `on-call-rule`,
                               children:
                                 onCallType === `WOC`
-                                  ? `7 days · 10:00 AM to 10:00 AM CT · 168 hours`
+                                  ? `Noon on day 1 to 11:59 AM on day 7 CT · 144 credited hours`
                                   : onCallType === `Backup`
                                     ? `12:00 AM to 11:59 PM CT · 24 hours`
                                     : `14 calendar days · 336 hours`,

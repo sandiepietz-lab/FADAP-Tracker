@@ -52,7 +52,7 @@ else
   exit 1
 fi
 
-echo "Deploying FADAP Hours version $RELEASE_VERSION to Firebase project: $PROJECT_ID"
+echo "Deploying FADAP Team Hub version $RELEASE_VERSION to Firebase project: $PROJECT_ID"
 cd "$FIREBASE_DIR"
 
 "${FIREBASE[@]}" deploy \

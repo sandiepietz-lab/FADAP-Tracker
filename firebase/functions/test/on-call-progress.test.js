@@ -122,10 +122,10 @@ test('background refresh credits WOC without an open app and skips unchanged hou
 });
 
 
-test('Monday noon ends Sunday 11:59 Central and rounds up only at the end', () => {
+test('default WOC runs noon to noon for six days', () => {
   const corrected = normalizeWocSchedule({ type: 'WOC', startDate: '2026-08-31', calculatedDurationHours: 168 });
   assert.equal(corrected.startDateTime, '2026-08-31T17:00:00.000Z');
-  assert.equal(corrected.endDateTime, '2026-09-06T16:59:00.000Z');
+  assert.equal(corrected.endDateTime, '2026-09-06T17:00:00.000Z');
   assert.equal(corrected.endDate, '2026-09-06');
   assert.equal(corrected.calculatedDurationHours, 144);
   const end = Date.parse(corrected.endDateTime);
@@ -137,5 +137,32 @@ test('Monday noon ends Sunday 11:59 Central and rounds up only at the end', () =
   assert.equal(days.reduce((sum, day) => sum + day.hours, 0), 144);
   const winter = normalizeWocSchedule({ type: 'WOC', startDate: '2026-01-05' });
   assert.equal(winter.startDateTime, '2026-01-05T18:00:00.000Z');
-  assert.equal(winter.endDateTime, '2026-01-11T17:59:00.000Z');
+  assert.equal(winter.endDateTime, '2026-01-11T18:00:00.000Z');
+});
+
+
+test('custom WOC dates survive normalization and credit only their duration in Sheets', () => {
+  const shorter = normalizeWocSchedule({ ...schedule, endDate: '2026-09-02' });
+  assert.equal(shorter.endDate, '2026-09-02');
+  assert.equal(shorter.endDateTime, '2026-09-02T17:00:00.000Z');
+  assert.equal(shorter.calculatedDurationHours, 48);
+  assert.deepEqual(normalizeWocSchedule(shorter), shorter);
+  assert.equal(completedOnCallHours(shorter, start + DAY), 24);
+  assert.equal(completedOnCallHours(shorter, start + 10 * DAY), 48);
+  assert.equal(completedTotal(rowsAt(7, shorter)), 48);
+  assert.equal(rowsAt(7, shorter).length, 3);
+  const moved = normalizeWocSchedule({ ...shorter, startDate: '2026-09-01' });
+  assert.equal(moved.calculatedDurationHours, 24);
+});
+
+test('noon Central date ranges account for daylight saving transitions', () => {
+  const spring = normalizeWocSchedule({ type: 'WOC', startDate: '2026-03-07', endDate: '2026-03-09' });
+  const fall = normalizeWocSchedule({ type: 'WOC', startDate: '2026-10-31', endDate: '2026-11-02' });
+  assert.equal(spring.calculatedDurationHours, 47);
+  assert.equal(fall.calculatedDurationHours, 49);
+  for (const value of [spring, fall]) {
+    const days = completedWocDays(value, Date.parse(value.endDateTime));
+    assert.equal(days.reduce((sum, day) => sum + day.hours, 0), value.calculatedDurationHours);
+    assert.equal(days.at(-1).completedAt, value.endDateTime);
+  }
 });

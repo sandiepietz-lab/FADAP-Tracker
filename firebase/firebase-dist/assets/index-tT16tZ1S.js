@@ -12683,18 +12683,18 @@ Error generating stack: ` +
     appId: `1:1053801277711:web:4ef9a62303536bf2bc367a`,
   },
   te = [
-    { name: `Hotline`, icon: `☎`, className: `hotline` },
-    { name: `Client`, icon: `●`, className: `client` },
-    { name: `FADAP Team`, icon: `●●`, className: `fadap-team` },
-    { name: `Treatment Center`, icon: `+`, className: `treatment-center` },
+    { name: `Hotline`, icon: (0, x.jsx)(`img`, { src: `/assets/hotline-phone-chat.svg`, alt: `` }), className: `hotline` },
+    { name: `Client`, icon: (0, x.jsx)(`img`, { src: `/assets/client-care.svg`, alt: `` }), className: `client` },
+    { name: `FADAP Team`, icon: (0, x.jsx)(`img`, { src: `/assets/recovery-wings.svg`, alt: `` }), className: `fadap-team` },
+    { name: `Treatment Center`, icon: (0, x.jsx)(`img`, { src: `/assets/treatment-recovery.svg`, alt: `` }), className: `treatment-center` },
     {
       name: `FA/Co-Worker`,
       icon: `✈`,
       className: `flight-attendant`,
     },
-    { name: `Inflight Base`, icon: `◆`, className: `base-leadership` },
-    { name: `Quick Notes`, icon: `✎`, className: `quick-add` },
-    { name: `Union`, icon: `+`, className: `other` },
+    { name: `Inflight Base`, icon: (0, x.jsx)(`img`, { src: `/assets/southwest-style-heart.svg`, alt: `` }), className: `base-leadership` },
+    { name: `Quick Notes`, icon: (0, x.jsx)(`img`, { src: `/assets/quick-notes-pencil.svg`, alt: `` }), className: `quick-add` },
+    { name: `Union`, icon: (0, x.jsx)(`img`, { src: `/assets/union-emblem.png`, alt: `` }), className: `other` },
   ],
   ne = {
     Hotline: [
@@ -13425,7 +13425,7 @@ function ae() {
     (setEditingOnCallId(e?.id || null),
       setOnCallType(e?.type || `WOC`),
       setOnCallStartDate(e?.startDate || today),
-      setOnCallEndDate(e?.endDate || addCalendarDays(today, 13)),
+      setOnCallEndDate(e?.endDate || addCalendarDays(today, 6)),
       setOnCallError(``),
       h(`onCallSchedule`));
   }
@@ -13444,11 +13444,7 @@ function ae() {
     }
     if (!e || !o || !onCallStartDate) return;
     let endDate =
-        onCallType === `WOC`
-          ? addCalendarDays(onCallStartDate, 6)
-          : onCallType === `Backup`
-            ? onCallStartDate
-            : onCallEndDate,
+        onCallType === `Backup` ? onCallStartDate : onCallEndDate,
       regionalDays =
         onCallType === `Regional`
           ? Math.round(
@@ -13461,14 +13457,18 @@ function ae() {
       setOnCallError(`Regional On-Call must cover exactly 14 calendar days.`);
       return;
     }
+    if (onCallType === `WOC` && (!endDate || endDate <= onCallStartDate)) {
+      setOnCallError(`WOC end date must be after the start date.`);
+      return;
+    }
     let type = onCallType,
       startDateTime,
       endDateTime,
       calculatedDurationHours;
     if (type === `WOC`) {
       ((startDateTime = centralDateTime(onCallStartDate, 12, 0)),
-        (endDateTime = centralDateTime(endDate, 11, 59)),
-        (calculatedDurationHours = 144));
+        (endDateTime = centralDateTime(endDate, 12, 0)),
+        (calculatedDurationHours = (Date.parse(endDateTime) - Date.parse(startDateTime)) / 3600000));
     } else if (type === `Backup`) {
       ((startDateTime = centralDateTime(onCallStartDate, 0, 0)),
         (endDateTime = centralDateTime(onCallStartDate, 23, 59)),
@@ -14331,118 +14331,32 @@ function ae() {
       ce(!1);
     }
   }
-  return n
-    ? e
-      ? previewMode || ee.includes(e.email)
-        ? (0, x.jsxs)(`main`, {
-            className: `app-shell`,
-            children: [
-              (0, x.jsxs)(`header`, {
-                className: `topbar`,
-                children: [
-                  (0, x.jsx)(`div`, {
-                    className: `brand-mark`,
-                    children: (0, x.jsx)(`img`, {
-                      src: `/assets/fadap-clock-logo.png`,
-                      alt: `FADAP`,
-                    }),
-                  }),
-                  (0, x.jsxs)(`div`, {
-                    children: [
-                      (0, x.jsx)(`p`, {
-                        className: `eyebrow`,
-                        children: `One hour at a time.`,
-                      }),
-                      (0, x.jsx)(`h1`, { children: `FADAP Daily` }),
-                    ],
-                  }),
-                  (0, x.jsx)(`div`, {
-                    className: `topbar-actions`,
-                    children:
-                      f === `timer`
-                        ? (0, x.jsxs)(x.Fragment, {
-                            children: [
-                              (0, x.jsx)(`button`, {
-                                className: `history-link`,
-                                onClick: () => {
-                                  setDashboardCategory(null);
-                                  p(`dashboard`);
-                                },
-                                children: `Dashboard`,
-                              }),
-                              (0, x.jsx)(`button`, {
-                                className: `history-link`,
-                                onClick: () => p(`history`),
-                                children: `History`,
-                              }),
-                            ],
-                          })
-                        : (0, x.jsx)(`button`, {
-                            className: `history-link main-link`,
-                            onClick: () => p(`timer`),
-                            children: `← Main`,
-                          }),
-                  }),
-                ],
-              }),
-              previewMode &&
-                (0, x.jsx)(`p`, {
-                  className: `preview-banner`,
-                  children: `Preview Mode — sample view only. Nothing will be saved.`,
-                }),
-              (0, x.jsxs)(`div`, {
-                className: `account-row`,
-                children: [
-                  (0, x.jsxs)(`span`, {
-                    className: `account-identity`,
-                    children: [
-                      e.email,
-                      (0, x.jsx)(`strong`, { children: e.firstName }),
-                    ],
-                  }),
-                  (0, x.jsxs)(`div`, {
-                    className: `account-actions`,
-                    children: [
-                      (0, x.jsx)(`button`, {
-                        onClick: () => window.location.reload(),
-                        children: `↻ Refresh App`,
-                      }),
-                      (0, x.jsx)(`button`, {
-                        onClick: () =>
-                          previewMode
-                            ? (setPreviewMode(!1), t(null))
-                            : o?.auth.signOut(),
-                        children: previewMode ? `Exit preview` : `Sign out`,
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-              (0, x.jsxs)(`section`, {
+  const pastCoverage = onCallSchedules
+    .filter((schedule) => [`WOC`, `Backup`, `HotlineLogin`].includes(schedule.type) && getOnCallStatus(schedule, onCallNow) === `completed`)
+    .sort((a, b) => new Date(b.endDateTime) - new Date(a.endDateTime));
+  const onCallCard = (0, x.jsxs)(`section`, {
                 className: `on-call-card`,
                 children: [
+                  (0, x.jsx)(`button`, {
+                    className: `add-on-call-button always-visible`,
+                    onClick: () => openOnCallSchedule(),
+                    children: `＋ Add WOC / 24 Hour Backup / Hotline`,
+                  }),
                   (0, x.jsxs)(`div`, {
                     className: `on-call-toggle`,
                     children: [
-                      (0, x.jsxs)(`div`, {
-                        children: [
-                          (0, x.jsx)(`span`, {
-                            children: `WOC / 24 Hour Backup / Hotline`,
-                          }),
-                        ],
-                      }),
                       (0, x.jsx)(`div`, {
                         className: `on-call-view-buttons`,
                         children: [[
                           [`active`, `Active`, onCallScheduleCounts.active],
                           [`scheduled`, `Upcoming`, onCallScheduleCounts.scheduled],
-                          [`completed`, `History`, onCallScheduleCounts.completed],
+                          [`completed`, `Past`, onCallScheduleCounts.completed],
                         ].map(([e, t, a]) =>
                           (0, x.jsxs)(
                             `button`,
                             {
                               className:
-                                `${showOnCall && onCallView === e ? `selected ` : ``}${e === `active` && onCallScheduleCounts.active > 0 ? `active-now` : ``}${e === `scheduled` && upcomingTomorrowCount > 0 ? ` upcoming-soon` : ``}`.trim(),
+                                `${showOnCall && onCallView === e ? `selected ` : ``}${e === `active` && onCallScheduleCounts.active > 0 ? `active-now` : ``}${e === `scheduled` && onCallScheduleCounts.scheduled > 0 ? ` upcoming-soon` : ``}`.trim(),
                               onClick: () => (
                                 setOnCallView(e),
                                 setShowOnCall(!0)
@@ -14462,11 +14376,6 @@ function ae() {
                         ],
                       }),
                     ],
-                  }),
-                  (0, x.jsx)(`button`, {
-                    className: `add-on-call-button always-visible`,
-                    onClick: () => openOnCallSchedule(),
-                    children: `＋ Add WOC / 24 Hour Backup / Hotline`,
                   }),
                   showOnCall &&
                     (0, x.jsxs)(`div`, {
@@ -14540,88 +14449,103 @@ function ae() {
                             }),
                         (0, x.jsx)(`p`, {
                           className: `on-call-note`,
-                          children: `WOC hours count after each completed 24 hours. The total is 144 hours. Times use Central Time.`,
+                          children: `WOC hours count after each completed 24 hours. Total hours depend on your selected dates. Times use Central Time.`,
                         }),
                       ],
                     }),
                 ],
+              });
+  return n
+    ? e
+      ? previewMode || ee.includes(e.email)
+        ? (0, x.jsxs)(`main`, {
+            className: `app-shell`,
+            children: [
+              (0, x.jsxs)(`header`, {
+                className: `topbar`,
+                children: [
+                  (0, x.jsx)(`div`, {
+                    className: `brand-mark`,
+                    children: (0, x.jsx)(`img`, {
+                      src: `/assets/fadap-clock-logo.png`,
+                      alt: `FADAP`,
+                    }),
+                  }),
+                  (0, x.jsxs)(`div`, {
+                    children: [
+                      (0, x.jsx)(`p`, {
+                        className: `eyebrow`,
+                        children: `One hour at a time.`,
+                      }),
+                      (0, x.jsx)(`h1`, { className: `app-brand-title`, children: (0, x.jsx)(`span`, { children: `Team Hub` }) }),
+                    ],
+                  }),
+                  (0, x.jsxs)(`div`, {
+                    className: `account-actions`,
+                    children: [
+                      (0, x.jsx)(`button`, {
+                        onClick: () => window.location.reload(),
+                        children: `↻ Refresh App`,
+                      }),
+                      (0, x.jsx)(`button`, {
+                        onClick: () =>
+                          previewMode
+                            ? (setPreviewMode(!1), t(null))
+                            : o?.auth.signOut(),
+                        children: previewMode ? `Exit preview` : `Sign out`,
+                      }),
+                    ],
+                  }),
+                ],
               }),
+              previewMode &&
+                (0, x.jsx)(`p`, {
+                  className: `preview-banner`,
+                  children: `Preview Mode — sample view only. Nothing will be saved.`,
+                }),
+              (0, x.jsxs)(`div`, {
+                className: `account-row`,
+                children: [
+                  (0, x.jsxs)(`span`, {
+                    className: `account-identity`,
+                    title: e.email,
+                    children: [(0, x.jsx)(`strong`, { children: e.email?.toLowerCase() === `spietzfadap@gmail.com` ? `Sandie P.` : e.firstName })],
+                  }),
+                  (0, x.jsx)(`div`, {
+                    className: `topbar-actions`,
+                    children:
+                      f === `timer`
+                        ? (0, x.jsxs)(x.Fragment, {
+                            children: [
+                              (0, x.jsx)(`button`, {
+                                className: `history-link`,
+                                onClick: () => {
+                                  setDashboardCategory(null);
+                                  p(`dashboard`);
+                                },
+                                children: `My Summary`,
+                              }),
+                              (0, x.jsx)(`button`, {
+                                className: `history-link`,
+                                onClick: () => p(`history`),
+                                children: `Activity Log`,
+                              }),
+                            ],
+                          })
+                        : (0, x.jsx)(`button`, {
+                            className: `history-link main-link`,
+                            onClick: () => p(`timer`),
+                            children: `← Main`,
+                          }),
+                  }),
+                ],
+              }),
+              f === `timer` && showStopwatch && onCallCard,
               le &&
                 (0, x.jsx)(`p`, { className: `error-banner`, children: le }),
               f === `timer`
                 ? (0, x.jsxs)(x.Fragment, {
                     children: [
-                      (0, x.jsxs)(`section`, {
-                        className: `totals`,
-                        children: [
-                          (0, x.jsxs)(`button`, {
-                            className: `total-card today total-card-link`,
-                            onClick: () => {
-                              setDashboardRange(`today`);
-                              setDashboardCategory(null);
-                              setDashboardEntryId(null);
-                              p(`dashboard`);
-                            },
-                            children: [
-                              (0, x.jsx)(`span`, { children: `Today` }),
-                              (0, x.jsx)(`strong`, { children: ie(ye.today) }),
-                              (0, x.jsx)(`small`, { children: `Activity hours` }),
-                            ],
-                          }),
-                          (0, x.jsxs)(`button`, {
-                            className: `total-card total-card-link`,
-                            onClick: () => {
-                              setDashboardRange(`week`);
-                              setDashboardCategory(null);
-                              setDashboardEntryId(null);
-                              p(`dashboard`);
-                            },
-                            children: [
-                              (0, x.jsx)(`span`, { children: `This week` }),
-                              (0, x.jsx)(`strong`, { children: ie(ye.week) }),
-                              (0, x.jsx)(`small`, { children: `Activity hours` }),
-                            ],
-                          }),
-                          (0, x.jsxs)(`button`, {
-                            className: `total-card total-card-link`,
-                            onClick: () => {
-                              setDashboardRange(`month`);
-                              setDashboardCategory(null);
-                              setDashboardEntryId(null);
-                              p(`dashboard`);
-                            },
-                            children: [
-                              (0, x.jsx)(`span`, { children: `This month` }),
-                              (0, x.jsx)(`strong`, { children: ie(ye.month) }),
-                              (0, x.jsx)(`small`, { children: `Activity hours` }),
-                            ],
-                          }),
-                          (0, x.jsxs)(`button`, {
-                            className: `total-card total-card-link coverage-total-card`,
-                            onClick: () => {
-                              setOnCallView(`completed`);
-                              setShowOnCall(!0);
-                              window.scrollTo({ top: 0, behavior: `smooth` });
-                            },
-                            children: [
-                              (0, x.jsx)(`span`, {
-                                children: `WOC / 24 / Hotline`,
-                              }),
-                              (0, x.jsx)(`strong`, {
-                                children: ie(
-                                  (onCallTotals.WOC +
-                                    onCallTotals.Backup +
-                                    onCallTotals.HotlineLogin) *
-                                    3600,
-                                ),
-                              }),
-                              (0, x.jsx)(`small`, {
-                                children: `Coverage hours`,
-                              }),
-                            ],
-                          }),
-                        ],
-                      }),
                       c && showStopwatch
                         ? (0, x.jsxs)(`section`, {
                             className: `running-card`,
@@ -14719,18 +14643,20 @@ function ae() {
                                           className: `activity-icon`,
                                           children: e.icon,
                                         }),
-                                        (0, x.jsx)(`strong`, {
-                                          children: e.name,
+                                      (0, x.jsx)(`strong`, {
+                                          children: e.name === `Union` ? `TWU 556` : e.name,
                                         }),
                                         (0, x.jsx)(`small`, {
                                           children:
-                                            e.name === `Quick Notes`
+                                            e.name === `Hotline`
+                                              ? `Ring Central`
+                                              : e.name === `Quick Notes`
                                               ? `Save for later`
                                               : e.name === `Client`
                                                 ? `In Salesforce`
                                               : e.name === `FA/Co-Worker`
                                                 ? `Not in Salesforce`
-                                              : e.name === `FADAP Team`
+                                              : [`FADAP Team`, `Treatment Center`, `Inflight Base`, `Union`].includes(e.name)
                                                 ? `Connecting with`
                                               : ne[e.name]
                                                 ? `Choose type`
@@ -14805,11 +14731,11 @@ function ae() {
                                   className: `manual-button admin-button`,
                                   onClick: () => xe(`Other Team Work`),
                                   children: [
-                                    (0, x.jsx)(`span`, { children: `⚙` }),
+                                    (0, x.jsx)(`span`, { children: (0, x.jsx)(`img`, { src: `/assets/team-tasks.svg`, alt: `` }) }),
                                     (0, x.jsxs)(`div`, {
                                       children: [
                                         (0, x.jsx)(`strong`, {
-                                          children: `Other Team Work`,
+                                          children: `Team Tasks`,
                                         }),
                                         (0, x.jsx)(`small`, {
                                           children: `Choose a category`,
@@ -14841,6 +14767,7 @@ function ae() {
                                 }),
                               ],
                             }),
+                            onCallCard,
                             (0, x.jsxs)(`button`, {
                               className: `just-timer-button`,
                               onClick: () =>
@@ -14848,7 +14775,7 @@ function ae() {
                                   ? setShowStopwatch(!0)
                                   : startDetailsLaterTimer(),
                               children: [
-                                (0, x.jsx)(`span`, { children: `▶` }),
+                                (0, x.jsx)(`span`, { children: (0, x.jsx)(`img`, { src: `/assets/timer-stopwatch.svg`, alt: `` }) }),
                                 (0, x.jsxs)(`div`, {
                                   children: [
                                     (0, x.jsx)(`strong`, {
@@ -14859,7 +14786,7 @@ function ae() {
                                         ? c.running === !1
                                           ? `Paused at ${ie(u, !0)}`
                                           : `Running: ${ie(u, !0)}`
-                                        : `Start, stop, continue, or reset`,
+                                        : `Start tracking time`,
                                     }),
                                   ],
                                 }),
@@ -14887,7 +14814,7 @@ function ae() {
                                   children: dashboardView.label,
                                 }),
                                 (0, x.jsx)(`h2`, {
-                                  children: `${e.firstName}’s Dashboard`,
+                                  children: `My Summary`,
                                 }),
                               ],
                             }),
@@ -14935,7 +14862,7 @@ function ae() {
                                     setDashboardCategory(null);
                                     setDashboardEntryId(null);
                                   },
-                                  children: `← Dashboard overview`,
+                                  children: `← My Summary`,
                                 }),
                                 (0, x.jsx)(`h3`, {
                                   children: dashboardDrilldownTitle,
@@ -15135,6 +15062,27 @@ function ae() {
                                 }),
                               ],
                             }),
+                        !dashboardCategory && (0, x.jsxs)(`section`, {
+                          className: `dashboard-coverage-log`,
+                          children: [
+                            (0, x.jsx)(`h3`, { children: `Past WOC / Hotline / 24 Hour Backup` }),
+                            (0, x.jsx)(`p`, { children: `Completed coverage · All dates · Central Time` }),
+                            pastCoverage.length
+                              ? (0, x.jsx)(`div`, {
+                                  className: `on-call-list`,
+                                  children: pastCoverage.map((schedule) => (0, x.jsxs)(`article`, {
+                                    children: [(0, x.jsxs)(`div`, {
+                                      children: [
+                                        (0, x.jsx)(`strong`, { children: schedule.type === `Backup` ? `24 Hour Backup` : schedule.type === `HotlineLogin` ? `Hotline` : `WOC` }),
+                                        (0, x.jsx)(`small`, { children: `${formatCentralDateTime(schedule.startDateTime)} – ${formatCentralDateTime(schedule.endDateTime)}` }),
+                                        (0, x.jsx)(`small`, { children: `${completedOnCallHours(schedule, onCallNow)} completed hours` }),
+                                      ],
+                                    })],
+                                  }, schedule.id)),
+                                })
+                              : (0, x.jsx)(`p`, { className: `dashboard-empty`, children: `No completed coverage yet.` }),
+                          ],
+                        }),
                       ],
                     })
                   : (0, x.jsxs)(`section`, {
@@ -15149,7 +15097,7 @@ function ae() {
                                 className: `eyebrow`,
                                 children: `Your synchronized records`,
                               }),
-                              (0, x.jsx)(`h2`, { children: `History` }),
+                              (0, x.jsx)(`h2`, { children: `Activity Log` }),
                             ],
                           }),
                           (0, x.jsxs)(`div`, {
@@ -15473,10 +15421,28 @@ function ae() {
                     "aria-modal": `true`,
                     children: [
                       m !== `resetTimerConfirm` &&
-                        (0, x.jsx)(`button`, {
-                          className: `close-button`,
-                          onClick: goBack,
-                          children: `← Back`,
+                        (0, x.jsxs)(`nav`, {
+                          className: `modal-navigation`,
+                          "aria-label": `Screen navigation`,
+                          children: [
+                            (0, x.jsx)(`button`, {
+                              type: `button`,
+                              className: `close-button`,
+                              onClick: goBack,
+                              children: `← Back`,
+                            }),
+                            (0, x.jsx)(`button`, {
+                              type: `button`,
+                              className: `close-button main-navigation-button`,
+                              onClick: () => {
+                                h(null);
+                                p(`timer`);
+                                setShowStopwatch(!1);
+                                setShowOnCall(!1);
+                              },
+                              children: `Back to main`,
+                            }),
+                          ],
                         }),
                       (0, x.jsx)(`p`, {
                         className: `eyebrow`,
@@ -15507,7 +15473,7 @@ function ae() {
                               ? `Treatment Center`
                             : m === `categoryEntry`
                               ? editingEntryId
-                                ? `Editing history entry`
+                                ? `Editing activity log entry`
                                 : pendingTimer?.activity
                             : m === `postTimerActivity` || m === `postTimerDetail`
                               ? `Timer complete`
@@ -15520,7 +15486,7 @@ function ae() {
                             : m === `finishQuickNoteCategory`
                               ? `Finish quick note`
                             : m === `editActivity`
-                              ? `Editing history entry`
+                              ? `Editing activity log entry`
                             : m === `testPositive` ||
                                 m === `positiveSubstances` ||
                                 m === `substances` ||
@@ -17519,8 +17485,8 @@ function ae() {
                                       }
                                       setOnCallType(e);
                                       setOnCallError(``);
-                                      e === `Regional` &&
-                                        setOnCallEndDate(addCalendarDays(onCallStartDate, 13));
+                                      (e === `Regional` || e === `WOC`) &&
+                                        setOnCallEndDate(addCalendarDays(onCallStartDate, e === `WOC` ? 6 : 13));
                                     },
                                     children: t,
                                   },
@@ -17544,7 +17510,7 @@ function ae() {
                                 setOnCallError(``);
                               },
                             }),
-                            onCallType === `Regional` &&
+                            (onCallType === `Regional` || onCallType === `WOC`) &&
                               (0, x.jsxs)(x.Fragment, {
                                 children: [
                                   (0, x.jsx)(`label`, {
@@ -17554,7 +17520,7 @@ function ae() {
                                   (0, x.jsx)(`input`, {
                                     className: `on-call-date-input`,
                                     type: `date`,
-                                    min: onCallStartDate,
+                                    min: onCallType === `WOC` ? addCalendarDays(onCallStartDate, 1) : onCallStartDate,
                                     value: onCallEndDate,
                                     onChange: (e) => {
                                       setOnCallEndDate(e.target.value);
@@ -17567,7 +17533,7 @@ function ae() {
                               className: `on-call-rule`,
                               children:
                                 onCallType === `WOC`
-                                  ? `Noon on day 1 to 11:59 AM on day 7 CT · 144 credited hours`
+                                  ? `Starts and ends at noon Central Time. Defaults to 6 days (144 hours); change either date for shorter coverage.`
                                   : onCallType === `Backup`
                                     ? `12:00 AM to 11:59 PM CT · 24 hours`
                                     : `14 calendar days · 336 hours`,
@@ -18150,7 +18116,7 @@ function ae() {
               className: `eyebrow`,
               children: `One hour at a time.`,
             }),
-            (0, x.jsx)(`h1`, { children: `FADAP Daily` }),
+            (0, x.jsxs)(`h1`, { className: `app-brand-title`, children: [(0, x.jsx)(`span`, { children: `FADAP` }), ` `, (0, x.jsx)(`span`, { children: `Team Hub` })] }),
             (0, x.jsx)(`p`, {
               children: `Your hours will stay private and synchronize between your phone and computer.`,
             }),
@@ -18203,7 +18169,7 @@ function ae() {
               alt: `FADAP`,
             }),
           }),
-          (0, x.jsx)(`h1`, { children: `FADAP Daily` }),
+          (0, x.jsxs)(`h1`, { className: `app-brand-title`, children: [(0, x.jsx)(`span`, { children: `FADAP` }), ` `, (0, x.jsx)(`span`, { children: `Team Hub` })] }),
           (0, x.jsx)(`p`, { children: `Preparing secure sign-in…` }),
         ],
       });

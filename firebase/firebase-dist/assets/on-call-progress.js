@@ -29,12 +29,13 @@ export function completedWocDays(schedule, now = Date.now()) {
   return days;
 }
 
-// WOC covers seven calendar dates: noon on the first through 11:59 AM
-// on the seventh. The final minute is rounded up to 144 credited hours.
+// WOC defaults to six days, with editable dates and noon Central boundaries.
 export function normalizeWocSchedule(schedule) {
   if (schedule.type !== "WOC" || !/^\d{4}-\d{2}-\d{2}$/.test(schedule.startDate || "")) return schedule;
   const [year, month, day] = schedule.startDate.split('-').map(Number);
-  const endDate = new Date(Date.UTC(year, month - 1, day + 6)).toISOString().slice(0, 10);
+  const endDate = /^\d{4}-\d{2}-\d{2}$/.test(schedule.endDate || '')
+    ? schedule.endDate
+    : new Date(Date.UTC(year, month - 1, day + 6)).toISOString().slice(0, 10);
   const central = (date, hour, minute) => {
     const [y, m, d] = date.split('-').map(Number);
     const target = Date.UTC(y, m - 1, d, hour, minute);
@@ -49,6 +50,8 @@ export function normalizeWocSchedule(schedule) {
     }
     return new Date(instant).toISOString();
   };
-  return { ...schedule, endDate, startDateTime: central(schedule.startDate, 12, 0),
-    endDateTime: central(endDate, 11, 59), calculatedDurationHours: 144 };
+  const startDateTime = central(schedule.startDate, 12, 0);
+  const endDateTime = central(endDate, 12, 0);
+  return { ...schedule, endDate, startDateTime, endDateTime,
+    calculatedDurationHours: Math.max(0, (Date.parse(endDateTime) - Date.parse(startDateTime)) / 3600000) };
 }

@@ -1,3 +1,4 @@
+import { timesheetRows } from "./timesheet-summary.js";
 import {
   onDocumentCreated,
   onDocumentDeleted,
@@ -174,10 +175,12 @@ async function createMonthlyReportArchive(reportingMonth) {
     ["GOOGLE_MONTHLY_REPORTS_FOLDER_ID", monthlyReportsFolderId],
   ]);
 
-  const title = `FADAP Daily Monthly Report — ${reportingMonth}`;
+  const title = `FADAP Team Hub Monthly Report — ${reportingMonth}`;
+  const connectTitle = `FADAP Connect Monthly Report — ${reportingMonth}`;
+  const legacyTitle = `FADAP Daily Monthly Report — ${reportingMonth}`;
   const { drive, sheets } = getGoogleWorkspaceClients();
   const existing = await drive.files.list({
-    q: `'${escapeDriveQuery(monthlyReportsFolderId)}' in parents and name = '${escapeDriveQuery(title)}' and trashed = false`,
+    q: `'${escapeDriveQuery(monthlyReportsFolderId)}' in parents and (name = '${escapeDriveQuery(title)}' or name = '${escapeDriveQuery(legacyTitle)}' or name = '${escapeDriveQuery(connectTitle)}') and trashed = false`,
     fields: "files(id,name,webViewLink)",
     pageSize: 1,
   });
@@ -1097,5 +1100,58 @@ export const archiveMonthlyGoogleSheetReports = onSchedule(
     console.log(`Starting monthly report archive for ${archivedMonth}`);
     await createMonthlyReportArchive(archivedMonth);
     await setCurrentReportingMonth(currentMonth);
+  },
+);
+
+
+export const refreshTimesheetSummary = onSchedule(
+  { schedule: "*/15 * * * *", timeZone, region: "us-central1",
+    timeoutSeconds: 300, memory: "256MiB", maxInstances: 1, retryCount: 3 },
+  async () => {
+    const target = process.env.GOOGLE_SHEET_TIMESHEET_ID;
+    if (!target || !memberReportsSpreadsheetId) throw new Error("Timesheet source/destination is not configured");
+    const sheets = getSheetsClient();
+    const [{ data: source }, { data: destination }] = await Promise.all([
+      sheets.spreadsheets.values.batchGet({ spreadsheetId: memberReportsSpreadsheetId,
+        ranges: ["'Raw Entries'!A:K", "'On Call'!A:M"], valueRenderOption: "UNFORMATTED_VALUE" }),
+      sheets.spreadsheets.get({ spreadsheetId: target, fields: "sheets(properties)" }),
+    ]);
+    const now = new Date();
+    const rows = timesheetRows(source.valueRanges[0].values || [], source.valueRanges[1].values || [],
+      new Set(Object.keys(memberSpreadsheetConfigs)), now);
+    const dataSheet = destination.sheets.find(s => s.properties.title === "Daily Totals");
+    const summary = destination.sheets.find(s => s.properties.title === "Timesheet Summary");
+    if (!dataSheet || !summary) throw new Error("Timesheet tabs were not found");
+    const sheetId = dataSheet.properties.sheetId;
+    const oldCount = dataSheet.properties.gridProperties.rowCount;
+    const count = Math.max(oldCount, rows.length);
+    const requests = [];
+    if (count > oldCount) requests.push({ updateSheetProperties: {
+      properties: { sheetId, gridProperties: { rowCount: count } }, fields: "gridProperties.rowCount" } });
+    requests.push({ updateCells: {
+      range: { sheetId, startRowIndex: 0, endRowIndex: count, startColumnIndex: 0, endColumnIndex: 4 },
+      rows: rows.map(row => ({ values: row.map(value => ({ userEnteredValue:
+        typeof value === "number" ? { numberValue: value } : { stringValue: value } })) })),
+      fields: "userEnteredValue",
+    } });
+    const stamp = formatCentralDateTime(now);
+    for (const sheet of destination.sheets.filter(s => !s.properties.hidden)) {
+      requests.push({ updateCells: {
+        range: { sheetId: sheet.properties.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 1 },
+        rows: [{ values: [{ userEnteredValue: { stringValue:
+          `Updated ${stamp.date} ${stamp.time} CT · Automatic refresh every 15 minutes` } }] }],
+        fields: "userEnteredValue",
+      } });
+    }
+    const months = [...new Set([stamp.month, ...rows.slice(1).map(row =>
+      new Date((row[1] - 25569) * 86400000).toISOString().slice(0, 7))])].sort();
+    requests.push({ setDataValidation: {
+      range: { sheetId: summary.properties.sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 1, endColumnIndex: 2 },
+      rule: { condition: { type: "ONE_OF_LIST", values: months.map(month => ({ userEnteredValue:
+        new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(month + "-01T00:00:00Z")) })) }, strict: true, showCustomUi: true },
+    } });
+    await withSheetsQuotaRetry(() => sheets.spreadsheets.batchUpdate({ spreadsheetId: target,
+      requestBody: { requests } }), "timesheet refresh");
+    console.log(`refreshTimesheetSummary success: dailyRows=${rows.length - 1}`);
   },
 );

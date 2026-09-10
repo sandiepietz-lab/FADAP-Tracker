@@ -13073,7 +13073,7 @@ function ae() {
       new Date().toISOString().slice(0, 10),
     ),
     [onCallEndDate, setOnCallEndDate] = (0, b.useState)(() =>
-      addCalendarDays(new Date().toISOString().slice(0, 10), 13),
+      addCalendarDays(new Date().toISOString().slice(0, 10), 14),
     ),
     [editingOnCallId, setEditingOnCallId] = (0, b.useState)(null),
     [onCallSaving, setOnCallSaving] = (0, b.useState)(!1),
@@ -13457,10 +13457,10 @@ function ae() {
               (Date.parse(`${endDate}T00:00:00Z`) -
                 Date.parse(`${onCallStartDate}T00:00:00Z`)) /
                 864e5,
-            ) + 1
+            )
           : 0;
-    if (onCallType === `Regional` && regionalDays !== 14) {
-      setOnCallError(`Regional On-Call must cover exactly 14 calendar days.`);
+    if (onCallType === `Regional` && (!Number.isFinite(regionalDays) || regionalDays < 1)) {
+      setOnCallError(`Regional end date must be after the start date.`);
       return;
     }
     if (onCallType === `WOC` && (!endDate || endDate <= onCallStartDate)) {
@@ -13480,9 +13480,9 @@ function ae() {
         (endDateTime = centralDateTime(onCallStartDate, 23, 59)),
         (calculatedDurationHours = 24));
     } else {
-      ((startDateTime = centralDateTime(onCallStartDate, 0, 0)),
-        (endDateTime = centralDateTime(endDate, 23, 59)),
-        (calculatedDurationHours = 336));
+      ((startDateTime = centralDateTime(onCallStartDate, 9, 0)),
+        (endDateTime = centralDateTime(endDate, 9, 0)),
+        (calculatedDurationHours = (Date.parse(endDateTime) - Date.parse(startDateTime)) / 3600000));
     }
     let duplicateBackup =
       type === `Backup` &&
@@ -14490,7 +14490,7 @@ function ae() {
                                           (0, x.jsx)(`strong`, {
                                             children:
                                               t.type === `Regional`
-                                                ? `2-Week Regional On-Call`
+                                                ? `Regional On-Call`
                                                 : t.type === `Backup`
                                                   ? `24 Hour Backup`
                                                   : t.type === `HotlineLogin`
@@ -17590,7 +17590,7 @@ function ae() {
                               children: [
                                 [`WOC`, `WOC`],
                                 [`Backup`, `24 Hour Backup`],
-                                [`Regional`, `2-Week Regional`],
+                                [`Regional`, `Regional Coordinator`],
                                 [`HotlineLogin`, `Temporary Hotline Login`],
                               ].map(([e, t]) =>
                                 (0, x.jsx)(
@@ -17613,7 +17613,7 @@ function ae() {
                                       setOnCallType(e);
                                       setOnCallError(``);
                                       (e === `Regional` || e === `WOC`) &&
-                                        setOnCallEndDate(addCalendarDays(onCallStartDate, e === `WOC` ? 6 : 13));
+                                        setOnCallEndDate(addCalendarDays(onCallStartDate, e === `WOC` ? 6 : 14));
                                     },
                                     children: t,
                                   },
@@ -17632,8 +17632,6 @@ function ae() {
                               value: onCallStartDate,
                               onChange: (e) => {
                                 setOnCallStartDate(e.target.value);
-                                onCallType === `Regional` &&
-                                  setOnCallEndDate(addCalendarDays(e.target.value, 13));
                                 setOnCallError(``);
                               },
                             }),
@@ -17647,7 +17645,7 @@ function ae() {
                                   (0, x.jsx)(`input`, {
                                     className: `on-call-date-input`,
                                     type: `date`,
-                                    min: onCallType === `WOC` ? addCalendarDays(onCallStartDate, 1) : onCallStartDate,
+                                    min: addCalendarDays(onCallStartDate, 1),
                                     value: onCallEndDate,
                                     onChange: (e) => {
                                       setOnCallEndDate(e.target.value);
@@ -17663,7 +17661,7 @@ function ae() {
                                   ? `Starts and ends at noon Central Time. Defaults to 6 days (144 hours); change either date for shorter coverage.`
                                   : onCallType === `Backup`
                                     ? `12:00 AM to 11:59 PM CT · 24 hours`
-                                    : `14 calendar days · 336 hours`,
+                                    : `Starts and ends at 9:00 AM Central Time. Defaults to 14 days; adjust either date for shorter or longer coverage. Hours are calculated between the start and end times.`,
                             }),
                             onCallError &&
                               (0, x.jsx)(`p`, {

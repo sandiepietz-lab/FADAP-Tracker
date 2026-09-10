@@ -12693,7 +12693,7 @@ Error generating stack: ` +
       className: `flight-attendant`,
     },
     { name: `Inflight Base`, icon: (0, x.jsx)(`img`, { src: `/assets/southwest-style-heart.svg`, alt: `` }), className: `base-leadership` },
-    { name: `Quick Notes`, icon: (0, x.jsx)(`img`, { src: `/assets/quick-notes-pencil.svg`, alt: `` }), className: `quick-add` },
+    { name: `Notes`, icon: (0, x.jsx)(`img`, { src: `/assets/quick-notes-pencil.svg`, alt: `` }), className: `quick-add` },
     { name: `Union`, icon: (0, x.jsx)(`img`, { src: `/assets/union-emblem.png`, alt: `` }), className: `other` },
   ],
   ne = {
@@ -12720,6 +12720,7 @@ Error generating stack: ` +
       `Back Online`,
       `Relapse`,
       `Client Follow-up/Check-In`,
+      `MRO Question`,
       `Terminated`,
       `Resigned`,
       `Other`,
@@ -12853,7 +12854,7 @@ Error generating stack: ` +
       ? contactMethods.filter((e) => e !== `In-person`)
       : contactMethods,
   usesInitialContactWorkflow = (e, t) =>
-    (e === `Client` && t === `Initial Contact`) ||
+    (e === `Client` && [`Initial Contact`, `MRO Question`].includes(t)) ||
     (e === `FA/Co-Worker` &&
       [`Self Referral`, `Family Member Needs Help`].includes(t)),
   reachOutRequestTypes = [
@@ -13015,6 +13016,7 @@ function ae() {
     [manualPositiveSubstances, setManualPositiveSubstances] = (0, b.useState)([]),
     [manualSubstances, setManualSubstances] = (0, b.useState)([]),
     [selectedTestPositive, setSelectedTestPositive] = (0, b.useState)(``),
+    [prescriptionFollowUp, setPrescriptionFollowUp] = (0, b.useState)([]),
     [initialContactMethod, setInitialContactMethod] = (0, b.useState)(``),
     [selectedPositiveSubstances, setSelectedPositiveSubstances] = (0, b.useState)([]),
     [selectedSubstances, setSelectedSubstances] = (0, b.useState)([]),
@@ -13040,6 +13042,8 @@ function ae() {
     [pendingTimer, setPendingTimer] = (0, b.useState)(null),
     [previousCategoryStep, setPreviousCategoryStep] = (0, b.useState)(null),
     [detailParent, setDetailParent] = (0, b.useState)(null),
+    [clientStageGroup, setClientStageGroup] = (0, b.useState)(`Getting started`),
+    hotlineCaller = (0, b.useRef)(null),
     [pendingClientDetail, setPendingClientDetail] = (0, b.useState)(``),
     [categoryNote, setCategoryNote] = (0, b.useState)(``),
     [salesforceCase, setSalesforceCase] = (0, b.useState)(``),
@@ -13177,7 +13181,7 @@ function ae() {
                 .sort((e, t) => t.createdAt.localeCompare(e.createdAt)),
             );
           },
-          () => ue(`Quick notes could not be loaded.`),
+          () => ue(`Notes could not be loaded.`),
         );
     }, [e, o]),
     (0, b.useEffect)(() => {
@@ -13633,7 +13637,7 @@ function ae() {
     }
   }
   function xe(e) {
-    e === `Quick Notes`
+    e === `Notes`
       ? (setQuickNoteText(``), setQuickNoteCase(``), h(`quickNote`))
       : ne[e]
         ? (setDetailParent(null), _(e), h(`detail`))
@@ -13661,7 +13665,7 @@ function ae() {
         });
       (setQuickNoteText(``), setQuickNoteCase(``), h(null));
     } catch {
-      ue(`The quick note could not be saved. Please try again.`);
+      ue(`The note could not be saved. Please try again.`);
     } finally {
       ce(!1);
     }
@@ -13713,7 +13717,7 @@ function ae() {
       return;
     }
     e === `Client` &&
-    t !== `Initial Contact`
+    ![`Initial Contact`, `MRO Question`].includes(t)
       ? (setSelectedDetail(t),
         setPendingClientDetail(t),
         setSalesforceCase(``),
@@ -13722,12 +13726,12 @@ function ae() {
     [`Base Leadership`, `CISM`, `Union`, `Professional Standards`].includes(t)
       ? (setSelectedDetail(t), h(`hotlineCallerReason`))
       : e === `Hotline` && t === `Client`
-      ? (setDetailParent(`Hotline`), _(`Client`), h(`detail`))
+      ? (hotlineCaller.current = `Client`, setDetailParent(`Hotline`), _(`Client`), h(`detail`))
       : e === `Hotline` && t === `Treatment Center`
-      ? (setDetailParent(`Hotline`), _(`Treatment Center`), h(`detail`))
+      ? (hotlineCaller.current = `Treatment Center`, setDetailParent(`Hotline`), _(`Treatment Center`), h(`detail`))
       : e === `Hotline` && t === `Flight Attendant`
       ? (setSelectedDetail(t), h(`hotlineFlightAttendant`))
-      : e === `Client` && t === `Initial Contact`
+      : e === `Client` && [`Initial Contact`, `MRO Question`].includes(t)
       ? (setSelectedDetail(t),
         setPendingClientDetail(``),
         setSalesforceCase(``),
@@ -13774,6 +13778,69 @@ function ae() {
             ? `Call`
             : void 0,
         );
+  }
+  function skipOptionalQuestionsToNotes() {
+    const withOther = (items, other) => items.map((item) => item === `Other` && other.trim() ? `Other: ${other.trim()}` : item);
+    let extra = {};
+    if ([`positiveSubstances`, `substances`, `prescriptionFollowUp`, `treatmentPlanTypes`].includes(m)) {
+      extra = {
+        testPositive: selectedTestPositive,
+        substances: selectedPositiveSubstances,
+        supportNeeds: withOther(selectedSubstances, supportNeedsOther),
+        ...(m === `prescriptionFollowUp` ? { prescriptionFollowUp } : {}),
+        ...(m === `treatmentPlanTypes` ? {
+          treatmentPlanAtThisTime: selectedTreatmentPlan,
+          treatmentPlanTypes: withOther(selectedTreatmentPlanTypes, treatmentPlanOther),
+        } : {}),
+      };
+    } else if (m === `ongoingRecovery`) {
+      extra.ongoingRecoveryTypes = withOther(selectedOngoingRecoveryTypes, ongoingRecoveryOther);
+    } else if ([`rspCompleted`, `rspRecovery`, `backOnlineCompleted`].includes(m)) {
+      extra.completedTypes = selectedRSPCompletedTypes;
+      if (m !== `backOnlineCompleted`) {
+        extra.rspCompletedTypes = selectedRSPCompletedTypes;
+        extra.rspStatus = selectedRSPStatus;
+      }
+      if (m === `rspRecovery`) extra.rspRecoveryTypes = withOther(selectedRSPRecoveryTypes, rspRecoveryOther);
+    } else if (m === `dischargeFollowUpCare`) {
+      extra.dischargeFollowUpCareTypes = withOther(selectedDischargeFollowUpCareTypes, dischargeFollowUpCareOther);
+      extra.treatmentLevel = selectedTreatmentLevel;
+      extra.dischargeDate = dischargeDate;
+    }
+    const selections = [extra.ongoingRecoveryTypes, extra.rspCompletedTypes || extra.completedTypes, extra.rspRecoveryTypes, extra.dischargeFollowUpCareTypes]
+      .filter(Boolean).flat();
+    const detail = [selectedDetail, extra.rspStatus, selections.length ? selections.join(` + `) : ``].filter(Boolean).join(` — `);
+    Se(g, detail, detailParent === `Hotline` || g === `Hotline` ? `Call` : initialContactMethod || undefined, extra);
+  }
+  function continueWithoutOption() {
+    if (m === `testPositive`) {
+      setSelectedTestPositive(``);
+      setSelectedPositiveSubstances([]);
+      setSelectedSubstances([]);
+      h(`substances`);
+      return;
+    }
+    if (m === `contactMethod` && usesInitialContactWorkflow(g, selectedDetail)) {
+      setInitialContactMethod(``);
+      setSelectedTestPositive(``);
+      setSelectedPositiveSubstances([]);
+      setSelectedSubstances([]);
+      h(`testPositive`);
+      return;
+    }
+    const detail = m === `detail` ? `` : selectedDetail || ``;
+    const extra = m === `treatmentPlan` ? {
+      treatmentPlanAtThisTime: ``,
+      treatmentPlanTypes: [],
+      ...(usesInitialContactWorkflow(g, selectedDetail) ? {
+        testPositive: selectedTestPositive,
+        substances: selectedPositiveSubstances,
+        supportNeeds: selectedSubstances.map((value) => value === `Other` && supportNeedsOther.trim() ? `Other: ${supportNeedsOther.trim()}` : value),
+      } : {}),
+    } : [`treatmentCenter`, `iopTreatmentProgram`].includes(m) ? {
+      treatmentLevel: selectedTreatmentLevel,
+    } : {};
+    Se(g, detail, g === `Hotline` || detailParent === `Hotline` ? `Call` : undefined, extra);
   }
   function continueClientFlow(e) {
     (e === `Initial Contact`
@@ -13909,6 +13976,15 @@ function ae() {
       h(`categoryEntry`));
   }
   function goBack() {
+    if (m === `testPositive` && detailParent === `Hotline` &&
+        hotlineCaller.current === `Flight Attendant — Self Referral`) {
+      setDetailParent(null);
+      hotlineCaller.current = null;
+      _(`Hotline`);
+      setSelectedDetail(`Flight Attendant`);
+      h(`hotlineFlightAttendant`);
+      return;
+    }
     if (m === `editActivity`) {
       h(`categoryEntry`);
       return;
@@ -13963,9 +14039,10 @@ function ae() {
       loungeVisit: `detail`,
       hotlineTemporaryLogin: `onCallSchedule`,
       clientCase: `detail`,
-      testPositive: usesInitialContactWorkflow(g, selectedDetail)
+      testPositive: g !== `Client` && usesInitialContactWorkflow(g, selectedDetail)
         ? `contactMethod`
         : `detail`,
+      prescriptionFollowUp: `positiveSubstances`,
       positiveSubstances:
         selectedTestPositive === `No` ? `substances` : `testPositive`,
       substances:
@@ -13998,6 +14075,18 @@ function ae() {
       ? h(previous)
       : (h(null), _(null), setFinishingQuickNote(null));
   }
+  function saveCategorizedEntry(entry) {
+    if (detailParent === `Hotline`) {
+      const caller = hotlineCaller.current || entry.activity;
+      entry = {
+        ...entry,
+        activity: `Hotline`,
+        detail: [caller, entry.detail].filter(Boolean).join(` — `),
+        contactMethod: `Call`,
+      };
+    }
+    return be(entry);
+  }
   async function saveCategoryEntry() {
     if (!pendingTimer || !categoryDate) return;
     let duration = (categoryHours * 60 + categoryMinutes) * 60;
@@ -14019,7 +14108,7 @@ function ae() {
           })()
         : currentCentralInput(),
       [hours, minutes] = time.split(`:`).map(Number);
-    let saved = await be({
+    let saved = await saveCategorizedEntry({
       id: editingEntryId || crypto.randomUUID(),
       ...pendingTimer,
       ...(pendingTimer.activity === `Client` &&
@@ -14208,7 +14297,7 @@ function ae() {
   }
   async function we(e = ae) {
     if (!v) return;
-    let saved = await be({
+    let saved = await saveCategorizedEntry({
       ...v,
       comment: e.trim().slice(0, 30),
       ...(v.activity === `Treatment Center` &&
@@ -14331,6 +14420,9 @@ function ae() {
       ce(!1);
     }
   }
+  (0, b.useEffect)(() => {
+    if (m === `detail` && g === `Client`) setClientStageGroup(`Getting started`);
+  }, [m, g]);
   const pastCoverage = onCallSchedules
     .filter((schedule) => [`WOC`, `Backup`, `HotlineLogin`].includes(schedule.type) && getOnCallStatus(schedule, onCallNow) === `completed`)
     .sort((a, b) => new Date(b.endDateTime) - new Date(a.endDateTime));
@@ -14650,7 +14742,7 @@ function ae() {
                                           children:
                                             e.name === `Hotline`
                                               ? `Ring Central`
-                                              : e.name === `Quick Notes`
+                                              : e.name === `Notes`
                                               ? `Save for later`
                                               : e.name === `Client`
                                                 ? `In Salesforce`
@@ -14755,10 +14847,10 @@ function ae() {
                                     (0, x.jsxs)(`div`, {
                                       children: [
                                         (0, x.jsx)(`strong`, {
-                                          children: `Manual Entry`,
+                                          children: `Quick Add`,
                                         }),
                                         (0, x.jsx)(`small`, {
-                                          children: `Manual/Quick Entry`,
+                                          children: `Add time and details`,
                                         }),
                                       ],
                                     }),
@@ -15416,7 +15508,7 @@ function ae() {
                     e.target === e.currentTarget &&
                     h(null),
                   children: (0, x.jsxs)(`section`, {
-                    className: `modal${m === `categoryEntry` ? ` final-entry-modal` : ``}`,
+                    className: `modal${m === `categoryEntry` ? ` final-entry-modal` : ``}${[`categoryEntry`, `comment`, `manual`].includes(m) ? ` amber-entry-modal` : ``}`,
                     role: `dialog`,
                     "aria-modal": `true`,
                     children: [
@@ -15484,7 +15576,7 @@ function ae() {
                             : m === `quickNote`
                               ? `Draft only — does not sync to Sheets`
                             : m === `finishQuickNoteCategory`
-                              ? `Finish quick note`
+                              ? `Finish note`
                             : m === `editActivity`
                               ? `Editing activity log entry`
                             : m === `testPositive` ||
@@ -15495,6 +15587,7 @@ function ae() {
                                 m === `ongoingRecovery` ||
                                 m === `rspStatus` ||
                                 m === `rspCompleted` ||
+                                m === `backOnlineCompleted` ||
                                 m === `rspRecovery` ||
                                 m === `rspSap` ||
                                 m === `treatmentLevel` ||
@@ -15573,7 +15666,7 @@ function ae() {
                             : m === `resetTimerConfirm`
                               ? `Reset timer?`
                             : m === `quickNote`
-                              ? `Save a quick note`
+                              ? `Save a note`
                             : m === `finishQuickNoteCategory`
                               ? `Choose a category`
                             : m === `editActivity`
@@ -15582,6 +15675,8 @@ function ae() {
                               ? `Test positive?`
                             : m === `clientCase`
                               ? `Salesforce Case #`
+                            : m === `prescriptionFollowUp`
+                              ? `Prescription Medication`
                             : m === `positiveSubstances`
                               ? `What is it for?`
                             : m === `substances`
@@ -15616,10 +15711,43 @@ function ae() {
                               ? `Lounge Visit`
                             : m === `hotlineTemporaryLogin`
                               ? `Temporary Hotline Login`
-                              : `Manual Entry`,
+                              : `Quick Add`,
                       }),
+                      m === `detail` && g === `Client` &&
+                        (0, x.jsx)(`div`, {
+                          className: `client-stage-groups`,
+                          children: [
+                            [`Getting started`, ne.Client.slice(0, 3)],
+                            [`Treatment & recovery`, ne.Client.slice(3, 9)],
+                            [`Other client activity`, ne.Client.slice(9)],
+                          ].map(([group, stages], index) => (0, x.jsxs)(`section`, {
+                            className: `client-stage-group`,
+                            children: [
+                              (0, x.jsxs)(`button`, {
+                                type: `button`,
+                                className: `client-stage-heading`,
+                                "aria-expanded": clientStageGroup === group,
+                                "aria-controls": `client-stage-panel-${index}`,
+                                onClick: () => setClientStageGroup(clientStageGroup === group ? null : group),
+                                children: [group, (0, x.jsx)(`span`, { "aria-hidden": true, children: clientStageGroup === group ? `▾` : `▸` })],
+                              }),
+                              (0, x.jsx)(`div`, {
+                                id: `client-stage-panel-${index}`,
+                                hidden: clientStageGroup !== group,
+                                children: (0, x.jsx)(`div`, {
+                                  className: `detail-options`,
+                                  children: stages.map((stage) => (0, x.jsxs)(`button`, {
+                                    type: `button`,
+                                    onClick: () => chooseDetail(`Client`, stage),
+                                    children: [stage, (0, x.jsx)(`span`, { children: `›` })],
+                                  }, stage)),
+                                }),
+                              }),
+                            ],
+                          }, group)),
+                        }),
                       m === `detail` &&
-                        g &&
+                        g && g !== `Client` &&
                         (0, x.jsx)(`div`, {
                           className: `detail-options`,
                           children: [
@@ -15659,7 +15787,7 @@ function ae() {
                               autoFocus: !0,
                             }),
                             (0, x.jsx)(`button`, {
-                              className: `save-button`,
+                              className: `save-button step-navigation-button`,
                               disabled: !otherDetailText.trim(),
                               onClick: () => {
                                 let detail = `Other — ${otherDetailText.trim()}`;
@@ -15667,11 +15795,10 @@ function ae() {
                                   ? (y((e) => ({ ...e, activity: g, detail })),
                                     h(`comment`))
                                   : detailParent === `Hotline`
-                                    ? (setDetailParent(null),
-                                      Se(g, detail, `Call`))
+                                    ? Se(g, detail, `Call`)
                                     : chooseDetail(g, detail);
                               },
-                              children: `Continue`,
+                              children: `Next`,
                             }),
                           ],
                         }),
@@ -15723,7 +15850,7 @@ function ae() {
                               autoFocus: !0,
                             }),
                             (0, x.jsx)(`button`, {
-                              className: `save-button`,
+                              className: `save-button step-navigation-button`,
                               disabled: !otherDetailText.trim(),
                               onClick: () => {
                                 let detail = `Committee Work — Other — ${otherDetailText.trim()}`;
@@ -15736,7 +15863,7 @@ function ae() {
                                     h(`comment`))
                                   : Se(`Other Team Work`, detail);
                               },
-                              children: `Continue`,
+                              children: `Next`,
                             }),
                           ],
                         }),
@@ -15868,13 +15995,13 @@ function ae() {
                                 }),
                             }),
                             (0, x.jsx)(`button`, {
-                              className: `save-button`,
+                              className: `save-button step-navigation-button`,
                               disabled:
                                 pendingClientDetail === `Initial Contact` &&
                                 !salesforceCase.trim(),
                               onClick: () =>
                                 continueClientFlow(pendingClientDetail),
-                              children: `Continue`,
+                              children: `Next`,
                             }),
                             pendingClientDetail !== `Initial Contact` &&
                               (0, x.jsx)(`button`, {
@@ -15991,7 +16118,13 @@ function ae() {
                               `button`,
                               {
                                 onClick: () =>
-                                  e === `Other`
+                                  e === `Self Referral`
+                                    ? (hotlineCaller.current = `Flight Attendant — Self Referral`,
+                                      setDetailParent(`Hotline`),
+                                      _(`Client`),
+                                      setSupportNeedsOther(``),
+                                      chooseDetail(`Client`, `Initial Contact`))
+                                    : e === `Other`
                                     ? (setHotlineOtherParent(selectedDetail),
                                       setOtherDetailText(``),
                                       h(`hotlineSubcategoryOther`))
@@ -16055,7 +16188,7 @@ function ae() {
                               autoFocus: !0,
                             }),
                             (0, x.jsx)(`button`, {
-                              className: `save-button`,
+                              className: `save-button step-navigation-button`,
                               disabled: !otherDetailText.trim(),
                               onClick: () => {
                                 let detail = `${hotlineOtherParent} — Other — ${otherDetailText.trim()}`;
@@ -16069,7 +16202,7 @@ function ae() {
                                     h(`comment`))
                                   : Se(`Hotline`, detail, `Call`);
                               },
-                              children: `Continue`,
+                              children: `Next`,
                             }),
                           ],
                         }),
@@ -16148,23 +16281,7 @@ function ae() {
                                 `RSP`,
                                 `Other`,
                               ].map((e) =>
-                                (0, x.jsx)(
-                                  `button`,
-                                  {
-                                    className:
-                                      selectedDischargeFollowUpCareTypes.includes(e)
-                                        ? `selected`
-                                        : ``,
-                                    onClick: () =>
-                                      setSelectedDischargeFollowUpCareTypes((t) =>
-                                        t.includes(e)
-                                          ? t.filter((t) => t !== e)
-                                          : [...t, e],
-                                      ),
-                                    children: e,
-                                  },
-                                  e,
-                                ),
+                                (0, x.jsxs)(`label`, { className: `prescription-option multi-select-option`, children: [(0, x.jsx)(`input`, { type: `checkbox`, checked: selectedDischargeFollowUpCareTypes.includes(e), onChange: () => setSelectedDischargeFollowUpCareTypes((items) => items.includes(e) ? items.filter((item) => item !== e) : [...items, e]) }), (0, x.jsx)(`span`, { children: e })] }, e),
                               ),
                             }),
                             selectedDischargeFollowUpCareTypes.includes(`Other`) &&
@@ -16176,7 +16293,7 @@ function ae() {
                                 placeholder: `Enter other follow-up care`,
                               }),
                             (0, x.jsx)(`button`, {
-                              className: `save-button`,
+                              className: `save-button step-navigation-button`,
                               disabled:
                                 selectedDischargeFollowUpCareTypes.includes(`Other`) &&
                                 !dischargeFollowUpCareOther.trim(),
@@ -16208,9 +16325,13 @@ function ae() {
                                     treatmentLevel: selectedTreatmentLevel,
                                   });
                               },
-                              children: selectedDischargeFollowUpCareTypes.length
-                                ? `Continue`
-                                : `Continue without adding`,
+                              children: `Next`,
+                            }),
+                            (0, x.jsx)(`button`, {
+                              type: `button`,
+                              className: `save-button option-skip-button step-navigation-button`,
+                              onClick: skipOptionalQuestionsToNotes,
+                              children: `Skip to notes`,
                             }),
                           ],
                         }),
@@ -16270,40 +16391,69 @@ function ae() {
                                 `Opioids — prescription opioids, heroin, fentanyl`,
                                 `Stimulants — cocaine, methamphetamine, misuse of prescription stimulants`,
                                 `Benzodiazepines / Sedatives — Xanax, Ativan, Klonopin, etc.`,
-                                `Other Prescription Medication`,
+                                `Prescription Medication`,
                                 `Hallucinogens / Psychedelics`,
                                 `Inhalants`,
                               ].map((e) =>
-                                (0, x.jsx)(
-                                  `button`,
-                                  {
-                                    className: selectedPositiveSubstances.includes(e)
-                                      ? `selected`
-                                      : ``,
-                                    onClick: () =>
-                                      setSelectedPositiveSubstances((t) =>
-                                        t.includes(e)
-                                          ? t.filter((t) => t !== e)
-                                          : [...t, e],
-                                      ),
-                                    children: e,
-                                  },
-                                  e,
-                                ),
+                                (0, x.jsxs)(`label`, { className: `prescription-option multi-select-option`, children: [(0, x.jsx)(`input`, { type: `checkbox`, checked: selectedPositiveSubstances.includes(e), onChange: () => setSelectedPositiveSubstances((items) => items.includes(e) ? items.filter((item) => item !== e) : [...items, e]) }), (0, x.jsx)(`span`, { children: e })] }, e),
                               ),
                             }),
                             (0, x.jsx)(`button`, {
-                              className: `save-button`,
+                              className: `save-button step-navigation-button`,
                               onClick: () =>
-                                selectedTestPositive === `Yes`
+                                selectedPositiveSubstances.length === 1 &&
+                                selectedPositiveSubstances[0] === `Prescription Medication`
+                                  ? (setPrescriptionFollowUp([]), h(`prescriptionFollowUp`))
+                                  : selectedTestPositive === `Yes`
                                   ? h(`substances`)
                                   : (setSelectedTreatmentPlan(``),
                                     setSelectedTreatmentPlanTypes([]),
                                     setTreatmentPlanOther(``),
                                     h(`treatmentPlan`)),
-                              children: selectedPositiveSubstances.length
-                                ? `Continue`
-                                : `Continue without adding`,
+                              children: selectedPositiveSubstances.length === 1 &&
+                                selectedPositiveSubstances[0] === `Prescription Medication`
+                                  ? `Next`
+                                  : `Next`,
+                            }),
+                            (0, x.jsx)(`button`, {
+                              type: `button`,
+                              className: `save-button option-skip-button step-navigation-button`,
+                              onClick: skipOptionalQuestionsToNotes,
+                              children: `Skip to notes`,
+                            }),
+                          ],
+                        }),
+                      m === `prescriptionFollowUp` &&
+                        (0, x.jsxs)(x.Fragment, {
+                          children: [
+                            (0, x.jsx)(`p`, { children: `Check all that apply` }),
+                            ...[`MRO Called`, `They have a current prescription`, `They do NOT have a current prescription`].map((option) =>
+                              (0, x.jsxs)(`label`, {
+                                className: `prescription-option`,
+                                children: [
+                                  (0, x.jsx)(`input`, {
+                                    type: `checkbox`,
+                                    checked: prescriptionFollowUp.includes(option),
+                                    onChange: () => setPrescriptionFollowUp((current) => current.includes(option) ? current.filter((item) => item !== option) : [...current, option]),
+                                  }),
+                                  option,
+                                ],
+                              }, option)),
+                            (0, x.jsx)(`button`, {
+                              className: `save-button step-navigation-button`,
+                              children: `Next`,
+                              onClick: () => Se(g, selectedDetail, detailParent === `Hotline` ? `Call` : initialContactMethod || `Call`, {
+                                testPositive: selectedTestPositive,
+                                substances: selectedPositiveSubstances,
+                                supportNeeds: selectedSubstances,
+                                prescriptionFollowUp,
+                              }),
+                            }),
+                            (0, x.jsx)(`button`, {
+                              type: `button`,
+                              className: `save-button option-skip-button step-navigation-button`,
+                              onClick: skipOptionalQuestionsToNotes,
+                              children: `Skip to notes`,
                             }),
                           ],
                         }),
@@ -16321,22 +16471,7 @@ function ae() {
                                 `Sex Addiction`,
                                 `Other`,
                               ].map((e) =>
-                                (0, x.jsx)(
-                                  `button`,
-                                  {
-                                    className: selectedSubstances.includes(e)
-                                      ? `selected`
-                                      : ``,
-                                    onClick: () =>
-                                      setSelectedSubstances((t) =>
-                                        t.includes(e)
-                                          ? t.filter((t) => t !== e)
-                                          : [...t, e],
-                                      ),
-                                    children: e,
-                                  },
-                                  e,
-                                ),
+                                (0, x.jsxs)(`label`, { className: `prescription-option multi-select-option`, children: [(0, x.jsx)(`input`, { type: `checkbox`, checked: selectedSubstances.includes(e), onChange: () => setSelectedSubstances((items) => items.includes(e) ? items.filter((item) => item !== e) : [...items, e]) }), (0, x.jsx)(`span`, { children: e })] }, e),
                               ),
                             }),
                             selectedSubstances.includes(`Other`) &&
@@ -16348,7 +16483,7 @@ function ae() {
                                 placeholder: `Enter other support need`,
                               }),
                             (0, x.jsx)(`button`, {
-                              className: `save-button`,
+                              className: `save-button step-navigation-button`,
                               disabled:
                                 selectedSubstances.includes(`Other`) &&
                                 !supportNeedsOther.trim(),
@@ -16360,7 +16495,13 @@ function ae() {
                                     setSelectedTreatmentPlanTypes([]),
                                     setTreatmentPlanOther(``),
                                     h(`treatmentPlan`)),
-                              children: `Continue`,
+                              children: `Next`,
+                            }),
+                            (0, x.jsx)(`button`, {
+                              type: `button`,
+                              className: `save-button option-skip-button step-navigation-button`,
+                              onClick: skipOptionalQuestionsToNotes,
+                              children: `Skip to notes`,
                             }),
                           ],
                         }),
@@ -16535,22 +16676,7 @@ function ae() {
                                 `Self-Directed Recovery`,
                                 `Other`,
                               ].map((e) =>
-                                (0, x.jsx)(
-                                  `button`,
-                                  {
-                                    className: selectedTreatmentPlanTypes.includes(e)
-                                      ? `selected`
-                                      : ``,
-                                    onClick: () =>
-                                      setSelectedTreatmentPlanTypes((t) =>
-                                        t.includes(e)
-                                          ? t.filter((t) => t !== e)
-                                          : [...t, e],
-                                      ),
-                                    children: e,
-                                  },
-                                  e,
-                                ),
+                                (0, x.jsxs)(`label`, { className: `prescription-option multi-select-option`, children: [(0, x.jsx)(`input`, { type: `checkbox`, checked: selectedTreatmentPlanTypes.includes(e), onChange: () => setSelectedTreatmentPlanTypes((items) => items.includes(e) ? items.filter((item) => item !== e) : [...items, e]) }), (0, x.jsx)(`span`, { children: e })] }, e),
                               ),
                             }),
                             selectedTreatmentPlanTypes.includes(`Other`) &&
@@ -16562,7 +16688,7 @@ function ae() {
                                 placeholder: `Enter other treatment plan`,
                               }),
                             (0, x.jsx)(`button`, {
-                              className: `save-button`,
+                              className: `save-button step-navigation-button`,
                               disabled:
                                 selectedTreatmentPlanTypes.includes(`Other`) &&
                                 !treatmentPlanOther.trim(),
@@ -16600,9 +16726,13 @@ function ae() {
                                       : {}),
                                   },
                                 ),
-                              children: selectedTreatmentPlanTypes.length
-                                ? `Continue`
-                                : `Continue without adding`,
+                              children: `Next`,
+                            }),
+                            (0, x.jsx)(`button`, {
+                              type: `button`,
+                              className: `save-button option-skip-button step-navigation-button`,
+                              onClick: skipOptionalQuestionsToNotes,
+                              children: `Skip to notes`,
                             }),
                           ],
                         }),
@@ -16623,22 +16753,7 @@ function ae() {
                                 `Self Directed Recovery`,
                                 `Other`,
                               ].map((e) =>
-                                (0, x.jsx)(
-                                  `button`,
-                                  {
-                                    className: selectedOngoingRecoveryTypes.includes(e)
-                                      ? `selected`
-                                      : ``,
-                                    onClick: () =>
-                                      setSelectedOngoingRecoveryTypes((t) =>
-                                        t.includes(e)
-                                          ? t.filter((t) => t !== e)
-                                          : [...t, e],
-                                      ),
-                                    children: e,
-                                  },
-                                  e,
-                                ),
+                                (0, x.jsxs)(`label`, { className: `prescription-option multi-select-option`, children: [(0, x.jsx)(`input`, { type: `checkbox`, checked: selectedOngoingRecoveryTypes.includes(e), onChange: () => setSelectedOngoingRecoveryTypes((items) => items.includes(e) ? items.filter((item) => item !== e) : [...items, e]) }), (0, x.jsx)(`span`, { children: e })] }, e),
                               ),
                             }),
                             selectedOngoingRecoveryTypes.includes(`Other`) &&
@@ -16649,7 +16764,7 @@ function ae() {
                                 placeholder: `Enter other recovery type`,
                               }),
                             (0, x.jsx)(`button`, {
-                              className: `save-button`,
+                              className: `save-button step-navigation-button`,
                               disabled:
                                 selectedOngoingRecoveryTypes.includes(`Other`) &&
                                 !ongoingRecoveryOther.trim(),
@@ -16672,9 +16787,13 @@ function ae() {
                                       })
                                     : h(`contactMethod`));
                               },
-                              children: selectedOngoingRecoveryTypes.length
-                                ? `Continue`
-                                : `Continue without adding`,
+                              children: `Next`,
+                            }),
+                            (0, x.jsx)(`button`, {
+                              type: `button`,
+                              className: `save-button option-skip-button step-navigation-button`,
+                              onClick: skipOptionalQuestionsToNotes,
+                              children: `Skip to notes`,
                             }),
                           ],
                         }),
@@ -16718,30 +16837,19 @@ function ae() {
                             (0, x.jsx)(`div`, {
                               className: `quick-comments`,
                               children: [`Inpatient`, `IOP`, `SAP`].map((e) =>
-                                (0, x.jsx)(
-                                  `button`,
-                                  {
-                                    className: selectedRSPCompletedTypes.includes(e)
-                                      ? `selected`
-                                      : ``,
-                                    onClick: () =>
-                                      setSelectedRSPCompletedTypes((t) =>
-                                        t.includes(e)
-                                          ? t.filter((t) => t !== e)
-                                          : [...t, e],
-                                      ),
-                                    children: e,
-                                  },
-                                  e,
-                                ),
+                                (0, x.jsxs)(`label`, { className: `prescription-option multi-select-option`, children: [(0, x.jsx)(`input`, { type: `checkbox`, checked: selectedRSPCompletedTypes.includes(e), onChange: () => setSelectedRSPCompletedTypes((items) => items.includes(e) ? items.filter((item) => item !== e) : [...items, e]) }), (0, x.jsx)(`span`, { children: e })] }, e),
                               ),
                             }),
                             (0, x.jsx)(`button`, {
-                              className: `save-button`,
+                              className: `save-button step-navigation-button`,
                               onClick: () => h(`rspRecovery`),
-                              children: selectedRSPCompletedTypes.length
-                                ? `Continue`
-                                : `Continue without adding`,
+                              children: `Next`,
+                            }),
+                            (0, x.jsx)(`button`, {
+                              type: `button`,
+                              className: `save-button option-skip-button step-navigation-button`,
+                              onClick: skipOptionalQuestionsToNotes,
+                              children: `Skip to notes`,
                             }),
                           ],
                         }),
@@ -16756,26 +16864,11 @@ function ae() {
                             (0, x.jsx)(`div`, {
                               className: `quick-comments`,
                               children: [`Inpatient`, `IOP`, `RSP`].map((e) =>
-                                (0, x.jsx)(
-                                  `button`,
-                                  {
-                                    className: selectedRSPCompletedTypes.includes(e)
-                                      ? `selected`
-                                      : ``,
-                                    onClick: () =>
-                                      setSelectedRSPCompletedTypes((t) =>
-                                        t.includes(e)
-                                          ? t.filter((t) => t !== e)
-                                          : [...t, e],
-                                      ),
-                                    children: e,
-                                  },
-                                  e,
-                                ),
+                                (0, x.jsxs)(`label`, { className: `prescription-option multi-select-option`, children: [(0, x.jsx)(`input`, { type: `checkbox`, checked: selectedRSPCompletedTypes.includes(e), onChange: () => setSelectedRSPCompletedTypes((items) => items.includes(e) ? items.filter((item) => item !== e) : [...items, e]) }), (0, x.jsx)(`span`, { children: e })] }, e),
                               ),
                             }),
                             (0, x.jsx)(`button`, {
-                              className: `save-button`,
+                              className: `save-button step-navigation-button`,
                               onClick: () => {
                                 let detail = `Back Online — Completed: ${
                                   selectedRSPCompletedTypes.length
@@ -16792,9 +16885,13 @@ function ae() {
                                     h(`comment`))
                                   : (setSelectedDetail(detail), h(`contactMethod`));
                               },
-                              children: selectedRSPCompletedTypes.length
-                                ? `Continue`
-                                : `Continue without adding`,
+                              children: `Next`,
+                            }),
+                            (0, x.jsx)(`button`, {
+                              type: `button`,
+                              className: `save-button option-skip-button step-navigation-button`,
+                              onClick: skipOptionalQuestionsToNotes,
+                              children: `Skip to notes`,
                             }),
                           ],
                         }),
@@ -16820,22 +16917,7 @@ function ae() {
                                 `Refuge Recovery`,
                                 `Other`,
                               ].map((e) =>
-                                (0, x.jsx)(
-                                  `button`,
-                                  {
-                                    className: selectedRSPRecoveryTypes.includes(e)
-                                      ? `selected`
-                                      : ``,
-                                    onClick: () =>
-                                      setSelectedRSPRecoveryTypes((t) =>
-                                        t.includes(e)
-                                          ? t.filter((t) => t !== e)
-                                          : [...t, e],
-                                      ),
-                                    children: e,
-                                  },
-                                  e,
-                                ),
+                                (0, x.jsxs)(`label`, { className: `prescription-option multi-select-option`, children: [(0, x.jsx)(`input`, { type: `checkbox`, checked: selectedRSPRecoveryTypes.includes(e), onChange: () => setSelectedRSPRecoveryTypes((items) => items.includes(e) ? items.filter((item) => item !== e) : [...items, e]) }), (0, x.jsx)(`span`, { children: e })] }, e),
                               ),
                             }),
                             selectedRSPRecoveryTypes.includes(`Other`) &&
@@ -16846,7 +16928,7 @@ function ae() {
                                 placeholder: `Enter other recovery type`,
                               }),
                             (0, x.jsx)(`button`, {
-                              className: `save-button`,
+                              className: `save-button step-navigation-button`,
                               disabled:
                                 selectedRSPRecoveryTypes.includes(`Other`) &&
                                 !rspRecoveryOther.trim(),
@@ -16872,9 +16954,13 @@ function ae() {
                                   },
                                 );
                               },
-                              children: selectedRSPRecoveryTypes.length
-                                ? `Continue`
-                                : `Continue without adding`,
+                              children: `Next`,
+                            }),
+                            (0, x.jsx)(`button`, {
+                              type: `button`,
+                              className: `save-button option-skip-button step-navigation-button`,
+                              onClick: skipOptionalQuestionsToNotes,
+                              children: `Skip to notes`,
                             }),
                           ],
                         }),
@@ -17174,7 +17260,7 @@ function ae() {
                         (0, x.jsx)(`div`, {
                           className: `detail-options`,
                           children: [
-                            ...te.filter((e) => e.name !== `Quick Notes`),
+                            ...te.filter((e) => e.name !== `Notes`),
                             {
                               name: `Other Team Work`,
                               icon: `⚙`,
@@ -17415,7 +17501,7 @@ function ae() {
                         (0, x.jsx)(`div`, {
                           className: `detail-options`,
                           children: te
-                            .filter((e) => e.name !== `Quick Notes`)
+                            .filter((e) => e.name !== `Notes`)
                             .map((e) =>
                               (0, x.jsxs)(
                                 `button`,
@@ -17435,7 +17521,7 @@ function ae() {
                         (0, x.jsx)(`div`, {
                           className: `detail-options`,
                           children: te
-                            .filter((e) => e.name !== `Quick Notes`)
+                            .filter((e) => e.name !== `Notes`)
                             .map((e) =>
                               (0, x.jsxs)(
                                 `button`,
@@ -17609,7 +17695,7 @@ function ae() {
                             (0, x.jsx)(`div`, {
                               className: `activity-pills`,
                               children: te
-                                .filter((e) => e.name !== `Quick Notes`)
+                                .filter((e) => e.name !== `Notes`)
                                 .map((e) =>
                                 (0, x.jsx)(
                                   `button`,
@@ -17753,27 +17839,11 @@ function ae() {
                                             `Opioids — prescription opioids, heroin, fentanyl`,
                                             `Stimulants — cocaine, methamphetamine, misuse of prescription stimulants`,
                                             `Benzodiazepines / Sedatives — Xanax, Ativan, Klonopin, etc.`,
-                                            `Other Prescription Medication`,
+                                            `Prescription Medication`,
                                             `Hallucinogens / Psychedelics`,
                                             `Inhalants`,
                                           ].map((e) =>
-                                            (0, x.jsx)(
-                                              `button`,
-                                              {
-                                                className:
-                                                  manualPositiveSubstances.includes(e)
-                                                    ? `selected`
-                                                    : ``,
-                                                onClick: () =>
-                                                  setManualPositiveSubstances((t) =>
-                                                    t.includes(e)
-                                                      ? t.filter((t) => t !== e)
-                                                      : [...t, e],
-                                                  ),
-                                                children: e,
-                                              },
-                                              e,
-                                            ),
+                                            (0, x.jsxs)(`label`, { className: `prescription-option multi-select-option`, children: [(0, x.jsx)(`input`, { type: `checkbox`, checked: manualPositiveSubstances.includes(e), onChange: () => setManualPositiveSubstances((items) => items.includes(e) ? items.filter((item) => item !== e) : [...items, e]) }), (0, x.jsx)(`span`, { children: e })] }, e),
                                           ),
                                         }),
                                       ],
@@ -17794,25 +17864,7 @@ function ae() {
                                             `Gambling`,
                                             `Sex Addiction`,
                                           ].map((e) =>
-                                              (0, x.jsx)(
-                                                `button`,
-                                                {
-                                                  className:
-                                                    manualSubstances.includes(e)
-                                                      ? `selected`
-                                                      : ``,
-                                                  onClick: () =>
-                                                    setManualSubstances((t) =>
-                                                      t.includes(e)
-                                                        ? t.filter(
-                                                            (t) => t !== e,
-                                                          )
-                                                        : [...t, e],
-                                                    ),
-                                                  children: e,
-                                                },
-                                                e,
-                                              ),
+                                              (0, x.jsxs)(`label`, { className: `prescription-option multi-select-option`, children: [(0, x.jsx)(`input`, { type: `checkbox`, checked: manualSubstances.includes(e), onChange: () => setManualSubstances((items) => items.includes(e) ? items.filter((item) => item !== e) : [...items, e]) }), (0, x.jsx)(`span`, { children: e })] }, e),
                                           ),
                                         }),
                                       ],
@@ -17961,49 +18013,30 @@ function ae() {
                             }),
                           ],
                         }),
-                      m !== `detail` &&
-                        m !== `otherDetail` &&
-                        m !== `contactMethod` &&
-                        m !== `reachOutRequestType` &&
-                        m !== `hotlineFlightAttendant` &&
-                      m !== `hotlineCallerReason` &&
-                        m !== `committeeWork` &&
-                        m !== `committeeWorkOther` &&
-                        m !== `hotlineSubcategoryOther` &&
-                        m !== `treatmentCenterDischargeLevel` &&
-                        m !== `postTreatmentCenterDischargeLevel` &&
-                        m !== `treatmentCenterDischarge` &&
-                        m !== `dischargeFollowUpCare` &&
-                        m !== `treatmentCenterClientIssues` &&
-                        m !== `categoryEntry` &&
-                        m !== `postTimerActivity` &&
-                        m !== `postTimerDetail` &&
-                        m !== `postReachOutRequestType` &&
-                        m !== `postHotlineUnion` &&
-                        m !== `postTreatmentCenterDischarge` &&
-                        m !== `postTreatmentCenterClientIssues` &&
-                        m !== `resetTimerConfirm` &&
-                        m !== `quickNote` &&
-                        m !== `finishQuickNoteCategory` &&
-                        m !== `testPositive` &&
-                        m !== `clientCase` &&
-                        m !== `positiveSubstances` &&
-                        m !== `substances` &&
-                        m !== `treatmentPlan` &&
-                        m !== `treatmentPlanTypes` &&
-                        m !== `ongoingRecovery` &&
-                        m !== `rspCompleted` &&
-                        m !== `backOnlineCompleted` &&
-                        m !== `rspRecovery` &&
-                        m !== `onCallSchedule` &&
-                        m !== `loungeVisit` &&
-                        m !== `hotlineTemporaryLogin` &&
+                        [`detail`, `contactMethod`, `testPositive`, `treatmentPlan`,
+                        `treatmentLevel`, `treatmentCenter`, `iopTreatmentProgram`,
+                        `rspStatus`, `reachOutRequestType`, `hotlineFlightAttendant`,
+                        `hotlineCallerReason`, `treatmentCenterClientIssues`,
+                        `treatmentCenterDischargeLevel`, `committeeWork`].includes(m) && g &&
+                        (0, x.jsx)(`button`, {
+                          className: (m === `testPositive` || (m === `contactMethod` && usesInitialContactWorkflow(g, selectedDetail))) ? `save-button step-navigation-button` : `save-button option-skip-button step-navigation-button`,
+                          onClick: continueWithoutOption,
+                          children: m === `testPositive` || (m === `contactMethod` && usesInitialContactWorkflow(g, selectedDetail)) ? `Next` : `Skip to notes`,
+                        }),
+                      m === `testPositive` &&
+                        (0, x.jsx)(`button`, {
+                          type: `button`,
+                          className: `save-button option-skip-button step-navigation-button`,
+                          onClick: skipOptionalQuestionsToNotes,
+                          children: `Skip to notes`,
+                        }),
+                      (m === `comment` || m === `manual`) &&
                         (0, x.jsxs)(x.Fragment, {
                           children: [
                             (0, x.jsxs)(`label`, {
                               className: `field-label`,
                               children: [
-                                `Short comment `,
+                                `Comment `,
                                 (0, x.jsx)(`em`, { children: `optional` }),
                               ],
                             }),
@@ -18012,7 +18045,7 @@ function ae() {
                               maxLength: 30,
                               value: ae,
                               onChange: (e) => oe(e.target.value),
-                              placeholder: `Type something short…`,
+                              placeholder: `Add a comment…`,
                             }),
                             m === `comment` &&
                               v?.activity === `Treatment Center` &&

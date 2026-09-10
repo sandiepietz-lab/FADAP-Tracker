@@ -356,6 +356,25 @@ function formatCentralDateTime(value) {
   };
 }
 
+function sheetActivityLabel(entry) {
+  const activity = entry.activity || "";
+  if (activity !== "Hotline") return activity;
+  const caller = String(entry.detail || "").split(/\s+—\s+/)[0].trim();
+  const callers = ["Client", "Flight Attendant", "Base Leadership", "Treatment Center",
+    "CISM", "Professional Standards", "Union", "Family/Friend", "Wrong Number", "Other"];
+  return callers.includes(caller)
+    ? `Hotline/${caller}`
+    : activity;
+}
+
+function sheetDetailLabel(entry) {
+  const detail = entry.detail || "";
+  if (entry.activity !== "Hotline" || sheetActivityLabel(entry) === "Hotline") {
+    return detail;
+  }
+  return String(detail).split(/\s+—\s+/).slice(1).join(" — ");
+}
+
 function entryRow(entryId, entry) {
   const started = formatCentralDateTime(entry.startedAt);
   const email = entry.email || "";
@@ -383,8 +402,8 @@ function entryRow(entryId, entry) {
     started.date,
     started.time,
     started.month,
-    entry.activity || "",
-    entry.detail || "",
+    sheetActivityLabel(entry),
+    sheetDetailLabel(entry),
     entryNotes(entry),
     durationMinutes,
     durationMinutes / 60,
@@ -428,8 +447,8 @@ function salesforceCaseRow(entryId, entry) {
     timeSerial,
     firstName,
     email,
-    entry.activity || "",
-    entry.detail || "",
+    sheetActivityLabel(entry),
+    sheetDetailLabel(entry),
     contactMethod,
     entryNotes(entry),
     durationMinutes,
@@ -447,7 +466,10 @@ function entryNotes(entry) {
   const dischargeDate = entry.dischargeDate
     ? `Discharge date: ${entry.dischargeDate}`
     : "";
-  return [hotlineLogin, entry.comment || "", dischargeDate]
+  const prescriptionFollowUp = Array.isArray(entry.prescriptionFollowUp)
+    ? entry.prescriptionFollowUp.join("; ")
+    : "";
+  return [hotlineLogin, entry.comment || "", dischargeDate, prescriptionFollowUp]
     .filter(Boolean)
     .join(" — ");
 }

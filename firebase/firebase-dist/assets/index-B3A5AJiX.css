@@ -2449,3 +2449,14 @@ h1 {
   display: block;
   white-space: nowrap;
 }
+
+/* Keep the MRO prescription choice prominent and group other substances. */
+.modal .mro-other-heading { margin: 16px 0 6px 18px; color: #244566; font-size: 13px; font-weight: 700; }
+.modal .prescription-option.mro-other-option { margin-left: 18px; width: calc(100% - 18px); box-sizing: border-box; }
+
+.hotline-caller-groups { display: grid; gap: 12px; }
+.hotline-caller-group > summary { cursor: pointer; list-style: none; box-sizing: border-box; }
+.hotline-caller-group > summary::-webkit-details-marker { display: none; }
+.hotline-caller-group > summary::after { content: "▸"; }
+.hotline-caller-group[open] > summary::after { content: "▾"; }
+.hotline-caller-group > .detail-options { padding: 8px 12px 12px; }

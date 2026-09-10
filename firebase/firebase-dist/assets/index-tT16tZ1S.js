@@ -12743,6 +12743,7 @@ Error generating stack: ` +
     "FADAP Team": [
       `FADAP Leadership`,
       `FADAP Member`,
+      `Reach Out Request`,
       `WOC Review`,
       `WOC Debrief`,
       `Team Meeting`,
@@ -12776,6 +12777,7 @@ Error generating stack: ` +
   },
   hotlineFlightAttendantTypes = [
     `Self Referral`,
+    `MRO Question`,
     `Family Member Needs Help`,
     `Reach Out Request`,
     `Medication Question`,
@@ -13825,7 +13827,7 @@ function ae() {
       setSelectedTestPositive(``);
       setSelectedPositiveSubstances([]);
       setSelectedSubstances([]);
-      h(`testPositive`);
+      h(g === `FA/Co-Worker` && selectedDetail === `Family Member Needs Help` ? `substances` : `testPositive`);
       return;
     }
     const detail = m === `detail` ? `` : selectedDetail || ``;
@@ -13977,7 +13979,7 @@ function ae() {
   }
   function goBack() {
     if (m === `testPositive` && detailParent === `Hotline` &&
-        hotlineCaller.current === `Flight Attendant — Self Referral`) {
+        [`Flight Attendant — Self Referral`, `Flight Attendant — MRO Question`].includes(hotlineCaller.current)) {
       setDetailParent(null);
       hotlineCaller.current = null;
       _(`Hotline`);
@@ -14046,7 +14048,9 @@ function ae() {
       positiveSubstances:
         selectedTestPositive === `No` ? `substances` : `testPositive`,
       substances:
-        selectedTestPositive === `Yes` ? `positiveSubstances` : `testPositive`,
+        g === `FA/Co-Worker` && selectedDetail === `Family Member Needs Help`
+          ? `contactMethod`
+          : selectedTestPositive === `Yes` ? `positiveSubstances` : `testPositive`,
       treatmentPlan:
         usesInitialContactWorkflow(g, selectedDetail)
           ? selectedTestPositive === `No` &&
@@ -14736,7 +14740,7 @@ function ae() {
                                           children: e.icon,
                                         }),
                                       (0, x.jsx)(`strong`, {
-                                          children: e.name === `Union` ? `TWU 556` : e.name,
+                                          children: e.name === `Union` ? `TWU556` : e.name,
                                         }),
                                         (0, x.jsx)(`small`, {
                                           children:
@@ -15616,7 +15620,7 @@ function ae() {
                               : g === `Treatment Center`
                                 ? `Reason for Contact`
                               : g === `FADAP Team`
-                                ? `Connecting with`
+                                ? `Choose a topic`
                                 : `Choose the type`
                             : m === `contactMethod`
                               ? `How did you connect?`
@@ -15657,12 +15661,12 @@ function ae() {
                               : g === `Treatment Center`
                                 ? `Reason for Contact`
                               : g === `FADAP Team`
-                                ? `Connecting with`
+                                ? `Choose a topic`
                                 : `Choose the type`
                             : m === `postReachOutRequestType`
                               ? `Who requested the reach out?`
                             : m === `postHotlineUnion`
-                              ? `Union Details`
+                              ? `TWU556 Details`
                             : m === `resetTimerConfirm`
                               ? `Reset timer?`
                             : m === `quickNote`
@@ -15746,8 +15750,40 @@ function ae() {
                             ],
                           }, group)),
                         }),
+                      m === `detail` && g === `Hotline` &&
+                        (0, x.jsxs)(`div`, {
+                          className: `hotline-caller-groups`,
+                          children: [
+                            (0, x.jsx)(`div`, {
+                              className: `detail-options`,
+                              children: [`Client`, `Flight Attendant`, `Family/Friend`, `Treatment Center`].map((caller) =>
+                                (0, x.jsxs)(`button`, {
+                                  type: `button`,
+                                  onClick: () => chooseDetail(`Hotline`, caller),
+                                  children: [caller === `Flight Attendant` ? `FA/Co-worker` : caller === `Family/Friend` ? `Family Member/Friend` : caller, (0, x.jsx)(`span`, { children: `›` })],
+                                }, caller)),
+                            }),
+                            ...[
+                              [`Company/Committee`, [`Base Leadership`, `CISM`, `Professional Standards`, `Union`]],
+                              [`Other Calls`, [`Wrong Number`, `Other`]],
+                            ].map(([group, callers]) => (0, x.jsxs)(`details`, {
+                              className: `client-stage-group hotline-caller-group`,
+                              children: [
+                                (0, x.jsx)(`summary`, { className: `client-stage-heading`, children: group }),
+                                (0, x.jsx)(`div`, {
+                                  className: `detail-options`,
+                                  children: callers.map((caller) => (0, x.jsxs)(`button`, {
+                                    type: `button`,
+                                    onClick: () => chooseDetail(`Hotline`, caller),
+                                    children: [caller === `Union` ? `TWU 556` : caller, (0, x.jsx)(`span`, { children: `›` })],
+                                  }, caller)),
+                                }),
+                              ],
+                            }, group)),
+                          ],
+                        }),
                       m === `detail` &&
-                        g && g !== `Client` &&
+                        g && g !== `Client` && g !== `Hotline` &&
                         (0, x.jsx)(`div`, {
                           className: `detail-options`,
                           children: [
@@ -15762,7 +15798,7 @@ function ae() {
                               {
                                 onClick: () => chooseDetail(g, e),
                                 children: [
-                                  e,
+                                  e === `Union` ? `TWU556` : e === `Family/Friend` ? `Family Member/Friend` : g === `Hotline` && e === `Flight Attendant` ? `FA/Co-worker` : e,
                                   (0, x.jsx)(`span`, { children: `›` }),
                                 ],
                               },
@@ -15881,7 +15917,7 @@ function ae() {
                                       setSelectedTestPositive(``),
                                       setSelectedPositiveSubstances([]),
                                       setSelectedSubstances([]),
-                                      h(`testPositive`))
+                                      h(g === `FA/Co-Worker` && selectedDetail === `Family Member Needs Help` ? `substances` : `testPositive`))
                                     : Se(
                                       g,
                                       selectedDetail,
@@ -16118,12 +16154,12 @@ function ae() {
                               `button`,
                               {
                                 onClick: () =>
-                                  e === `Self Referral`
-                                    ? (hotlineCaller.current = `Flight Attendant — Self Referral`,
+                                  [`Self Referral`, `MRO Question`].includes(e)
+                                    ? (hotlineCaller.current = `Flight Attendant — ${e}`,
                                       setDetailParent(`Hotline`),
                                       _(`Client`),
                                       setSupportNeedsOther(``),
-                                      chooseDetail(`Client`, `Initial Contact`))
+                                      chooseDetail(`Client`, e === `MRO Question` ? `MRO Question` : `Initial Contact`))
                                     : e === `Other`
                                     ? (setHotlineOtherParent(selectedDetail),
                                       setOtherDetailText(``),
@@ -16386,16 +16422,21 @@ function ae() {
                             (0, x.jsx)(`div`, {
                               className: `quick-comments`,
                               children: [
+                                ...(selectedDetail === `MRO Question` ? [`Prescription Medication`] : []),
                                 `Alcohol`,
                                 `Cannabis / THC`,
                                 `Opioids — prescription opioids, heroin, fentanyl`,
                                 `Stimulants — cocaine, methamphetamine, misuse of prescription stimulants`,
                                 `Benzodiazepines / Sedatives — Xanax, Ativan, Klonopin, etc.`,
-                                `Prescription Medication`,
+                                ...(selectedDetail === `MRO Question` ? [] : [`Prescription Medication`]),
                                 `Hallucinogens / Psychedelics`,
                                 `Inhalants`,
                               ].map((e) =>
-                                (0, x.jsxs)(`label`, { className: `prescription-option multi-select-option`, children: [(0, x.jsx)(`input`, { type: `checkbox`, checked: selectedPositiveSubstances.includes(e), onChange: () => setSelectedPositiveSubstances((items) => items.includes(e) ? items.filter((item) => item !== e) : [...items, e]) }), (0, x.jsx)(`span`, { children: e })] }, e),
+                                (0, x.jsxs)(x.Fragment, { children: [
+                                  selectedDetail === `MRO Question` && e === `Alcohol` &&
+                                    (0, x.jsx)(`p`, { className: `mro-other-heading`, children: `Other substances · Check all that apply` }),
+                                  (0, x.jsxs)(`label`, { className: `prescription-option multi-select-option${selectedDetail === `MRO Question` && e !== `Prescription Medication` ? ` mro-other-option` : ``}`, children: [(0, x.jsx)(`input`, { type: `checkbox`, checked: selectedPositiveSubstances.includes(e), onChange: () => setSelectedPositiveSubstances((items) => items.includes(e) ? items.filter((item) => item !== e) : [...items, e]) }), (0, x.jsx)(`span`, { children: e })] }),
+                                ] }, e),
                               ),
                             }),
                             (0, x.jsx)(`button`, {

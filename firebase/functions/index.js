@@ -1,5 +1,6 @@
 import { teamPaidVolunteerRequests } from "./team-paid-volunteer.js";
 import { archiveTimesheets } from "./timesheet-archive.js";
+import { migrateTeamTaskLabel } from "./team-task-sheet-label.js";
 import { timesheetRows } from "./timesheet-summary.js";
 import { timesheetLayoutRequests, needsTimesheetLayout } from "./timesheet-layout.js";
 import {
@@ -368,6 +369,7 @@ function formatCentralDateTime(value) {
 
 function sheetActivityLabel(entry) {
   const activity = entry.activity || "";
+  if (["Other Team Work", "Team Tasks", "Team Task"].includes(activity)) return "Team Task";
   if (activity !== "Hotline") return activity;
   const caller = String(entry.detail || "").split(/\s+—\s+/)[0].trim();
   const callers = ["Client", "Flight Attendant", "Base Leadership", "Treatment Center",
@@ -1149,6 +1151,9 @@ export const refreshTimesheetSummary = onSchedule(
     const target = process.env.GOOGLE_SHEET_TIMESHEET_ID;
     if (!target || !memberReportsSpreadsheetId) throw new Error("Timesheet source/destination is not configured");
     const sheets = getSheetsClient();
+    for (const id of new Set([memberReportsSpreadsheetId, teamSpreadsheetId].filter(Boolean))) {
+      await migrateTeamTaskLabel(sheets, id);
+    }
     const [{ data: source }, { data: destination }] = await Promise.all([
       sheets.spreadsheets.values.batchGet({ spreadsheetId: memberReportsSpreadsheetId,
         ranges: ["'Raw Entries'!A:K", "'On Call'!A:M"], valueRenderOption: "UNFORMATTED_VALUE" }),

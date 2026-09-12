@@ -6,7 +6,7 @@ export function isPaidTimesheetEntry(row) {
   const activity = String(row[6] || '').trim();
   const detail = String(row[7] || '').trim();
   return (activity === 'Inflight Base' && /^Lounge Visit(?:$| —)/i.test(detail)) ||
-    (['Other Team Work', 'Team Tasks'].includes(activity) &&
+    (['Other Team Work', 'Team Tasks', 'Team Task'].includes(activity) &&
       /^(?:Committee Work — )?New Hire Class Presentation(?:$| —)/i.test(detail));
 }
 

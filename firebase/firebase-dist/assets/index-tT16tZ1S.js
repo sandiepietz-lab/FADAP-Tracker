@@ -13386,6 +13386,7 @@ function ae() {
         `FA/Co-Worker`,
         `Inflight Base`,
         `Union`,
+        `Team Task`,
       ],
       categories = Object.fromEntries(
         categoryNames.map((e) => [e, { name: e, seconds: 0, count: 0, entries: [] }]),
@@ -13396,13 +13397,24 @@ function ae() {
       let name =
           e.activity === `Peer` || e.activity === `Flight Attendant Support`
             ? `FA/Co-Worker`
-            : e.activity,
+            : [`Other Team Work`, `Team Tasks`, `Team Task`].includes(e.activity)
+              ? `Team Task`
+              : e.activity,
         category = categories[name];
       category &&
         ((category.seconds += Number(e.duration) || 0),
         (category.count += 1),
         category.entries.push(e));
     });
+    const taskTypes = new Map();
+    for (const entry of categories[`Team Task`].entries) {
+      const detail = entry.detail || `Unspecified type`;
+      const type = taskTypes.get(detail) || {name: detail, count: 0, seconds: 0};
+      type.count += 1;
+      type.seconds += Number(entry.duration) || 0;
+      taskTypes.set(detail, type);
+    }
+    categories[`Team Task`].types = [...taskTypes.values()];
     return {
       entries,
       totalSeconds,
@@ -14813,7 +14825,7 @@ function ae() {
                                         }),
                                       ],
                                     },
-                                    e.name,
+                                    e.name === `Other Team Work` ? `Team Task` : e.name,
                                   ),
                                 ),
                               }),
@@ -14884,7 +14896,7 @@ function ae() {
                                     (0, x.jsxs)(`div`, {
                                       children: [
                                         (0, x.jsx)(`strong`, {
-                                          children: `Team Tasks`,
+                                          children: `Team Task`,
                                         }),
                                         (0, x.jsx)(`small`, {
                                           children: `Choose a category`,
@@ -15064,7 +15076,7 @@ function ae() {
                                                       (0, x.jsxs)(`p`, {
                                                         children: [
                                                           (0, x.jsx)(`b`, { children: `Category` }),
-                                                          (0, x.jsx)(`span`, { children: e.activity || `—` }),
+                                                          (0, x.jsx)(`span`, { children: e.activity === `Other Team Work` ? `Team Task` : e.activity || `—` }),
                                                         ],
                                                       }),
                                                       (0, x.jsxs)(`p`, {
@@ -15198,6 +15210,11 @@ function ae() {
                                                 (0, x.jsx)(`small`, {
                                                   children: `${e.count} ${e.count === 1 ? `entry` : `entries`} · ${dashboardView.totalSeconds ? Math.round((e.seconds / dashboardView.totalSeconds) * 100) : 0}%`,
                                                 }),
+                                                ...(e.types || []).map((type) =>
+                                                  (0, x.jsx)(`small`, {
+                                                    children: `${type.name} · ${type.count} ${type.count === 1 ? `entry` : `entries`} · ${ie(type.seconds)}`,
+                                                  }, type.name),
+                                                ),
                                               ],
                                             }),
                                             (0, x.jsx)(`b`, {
@@ -15206,7 +15223,7 @@ function ae() {
                                             (0, x.jsx)(`span`, { children: `›` }),
                                           ],
                                         },
-                                        e.name,
+                                        e.name === `Other Team Work` ? `Team Task` : e.name,
                                       ),
                                     ),
                                   ],
@@ -15461,7 +15478,7 @@ function ae() {
                                           (0, x.jsxs)(`p`, {
                                             children: [
                                               (0, x.jsx)(`b`, { children: `Category` }),
-                                              (0, x.jsx)(`span`, { children: t.activity || `—` }),
+                                              (0, x.jsx)(`span`, { children: t.activity === `Other Team Work` ? `Team Task` : t.activity || `—` }),
                                             ],
                                           }),
                                           (0, x.jsxs)(`p`, {
@@ -15599,9 +15616,9 @@ function ae() {
                         className: `eyebrow`,
                         children:
                           m === `detail`
-                            ? g
+                            ? g === `Other Team Work` ? `Team Task` : g
                             : m === `otherDetail`
-                              ? g
+                              ? g === `Other Team Work` ? `Team Task` : g
                             : m === `contactMethod`
                               ? selectedDetail
                             : m === `reachOutRequestType`
@@ -15625,7 +15642,7 @@ function ae() {
                             : m === `categoryEntry`
                               ? editingEntryId
                                 ? `Editing activity log entry`
-                                : pendingTimer?.activity
+                                : pendingTimer?.activity === `Other Team Work` ? `Team Task` : pendingTimer?.activity
                             : m === `postTimerActivity` || m === `postTimerDetail`
                               ? `Timer complete`
                             : m === `postReachOutRequestType`
@@ -17076,7 +17093,7 @@ function ae() {
                                     children: `Change category`,
                                   }),
                                   (0, x.jsx)(`strong`, {
-                                    children: `${pendingTimer.activity}${pendingTimer.detail ? ` · ${pendingTimer.detail}` : ``}`,
+                                    children: `${pendingTimer.activity === `Other Team Work` ? `Team Task` : pendingTimer.activity}${pendingTimer.detail ? ` · ${pendingTimer.detail}` : ``}`,
                                   }),
                                 ],
                               }),
@@ -17371,7 +17388,7 @@ function ae() {
                               {
                                 onClick: () => choosePostTimerActivity(e.name),
                                 children: [
-                                  e.name,
+                                  e.name === `Other Team Work` ? `Team Task` : e.name,
                                   (0, x.jsx)(`span`, { children: `›` }),
                                 ],
                               },
@@ -17606,7 +17623,7 @@ function ae() {
                                 {
                                   onClick: () => chooseQuickNoteCategory(e.name),
                                   children: [
-                                    e.name,
+                                    e.name === `Other Team Work` ? `Team Task` : e.name,
                                     (0, x.jsx)(`span`, { children: `›` }),
                                   ],
                                 },
@@ -17626,7 +17643,7 @@ function ae() {
                                 {
                                   onClick: () => chooseEditActivity(e.name),
                                   children: [
-                                    e.name,
+                                    e.name === `Other Team Work` ? `Team Task` : e.name,
                                     (0, x.jsx)(`span`, { children: `›` }),
                                   ],
                                 },
@@ -17808,7 +17825,7 @@ function ae() {
                                     },
                                     children: e.name,
                                   },
-                                  e.name,
+                                  e.name === `Other Team Work` ? `Team Task` : e.name,
                                 ),
                               ),
                             }),

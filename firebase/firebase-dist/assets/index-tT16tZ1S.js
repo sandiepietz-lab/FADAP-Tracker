@@ -12992,6 +12992,46 @@ Error generating stack: ` +
       : t >= Date.parse(e.endDateTime)
         ? `completed`
         : `active`;
+function MemberReportLinks({ email, onMain }) {
+  const [config, setConfig] = (0, b.useState)(null);
+  const [failed, setFailed] = (0, b.useState)(false);
+  (0, b.useEffect)(() => {
+    let cancelled = false;
+    fetch(`/report-links.json`, { cache: `no-store` }).then((response) => {
+      if (!response.ok) throw new Error(`Reports unavailable`);
+      return response.json();
+    }).then((value) => { if (!cancelled) setConfig(value); })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; };
+  }, []);
+  const tab = config?.memberTabs?.[(email || ``).trim().toLowerCase()];
+  const timesheetTab = config?.timesheetTabs?.[(email || ``).trim().toLowerCase()];
+  return (0, x.jsxs)(`details`, {
+    className: `member-reports`,
+    children: [
+      (0, x.jsx)(`summary`, { className: `history-link`, children: `Reports` }),
+      (0, x.jsxs)(`div`, { className: `member-reports-menu`, children: [
+        (0, x.jsx)(`button`, {
+          type: `button`,
+          className: `history-link main-link`,
+          onClick: (event) => {
+            const menu = event.currentTarget.closest(`details`);
+            if (menu) {
+              menu.open = false;
+              menu.querySelector(`summary`)?.focus();
+            }
+            onMain();
+          },
+          children: `← Main`,
+        }),
+        tab !== undefined
+          ? (0, x.jsx)(`a`, { href: `https://docs.google.com/spreadsheets/d/${config.individualSpreadsheet}/edit#gid=${tab}`, target: `_blank`, rel: `noopener noreferrer`, children: `Individual Report ↗` })
+          : (0, x.jsx)(`p`, { children: failed ? `Reports could not load. Refresh App to retry.` : config ? `Your individual report link has not been set up yet.` : `Loading reports…` }),
+        timesheetTab !== undefined && (0, x.jsx)(`a`, { href: `https://docs.google.com/spreadsheets/d/${config.timesheetSpreadsheet}/edit#gid=${timesheetTab}`, target: `_blank`, rel: `noopener noreferrer`, children: `Timesheets ↗` }),
+      ] }),
+    ],
+  });
+}
 function ae() {
   let [e, t] = (0, b.useState)(null),
     [previewMode, setPreviewMode] = (0, b.useState)(!1),
@@ -13707,6 +13747,11 @@ function ae() {
       ne[e] ? h(`detail`) : Se(e));
   }
   function chooseDetail(e, t) {
+    if (e === `FADAP Team` && t === `Reach Out Request`) {
+      setSelectedDetail(t);
+      h(`reachOutRequestType`);
+      return;
+    }
     if (e === `Other Team Work` && t === `Committee Work`) {
       (setSelectedDetail(t), setOtherDetailText(``), h(`committeeWork`));
       return;
@@ -14010,7 +14055,9 @@ function ae() {
       return;
     }
     let previous = {
-      contactMethod: selectedDetail.includes(`SAP Completed:`)
+      contactMethod: g === `FADAP Team` && selectedDetail.startsWith(`Reach Out Request —`)
+        ? `reachOutRequestType`
+        : selectedDetail.includes(`SAP Completed:`)
         ? `rspSap`
         : selectedDetail.startsWith(`RSP —`)
           ? `rspRecovery`
@@ -14238,6 +14285,11 @@ function ae() {
       ne[e] ? (setDetailParent(null), _(e), h(`detail`)) : Se(e));
   }
   function choosePostTimerDetail(e, t) {
+    if (e === `FADAP Team` && t === `Reach Out Request`) {
+      y((entry) => ({ ...entry, activity: e, detail: t }));
+      chooseDetail(e, t);
+      return;
+    }
     if (e === `Other Team Work` && t === `Committee Work`) {
       (y((n) => ({ ...n, activity: e, detail: t })),
         setSelectedDetail(t),
@@ -14353,7 +14405,7 @@ function ae() {
               supportNeeds: manualSubstances,
             }
           : {}),
-        comment: ae.trim().slice(0, 30),
+        comment: ae.trim().slice(0, 250),
         startedAt: new Date(`${pe}T${D}`).toISOString(),
         duration: e,
       });
@@ -14613,6 +14665,7 @@ function ae() {
                       f === `timer`
                         ? (0, x.jsxs)(x.Fragment, {
                             children: [
+                              (0, x.jsx)(MemberReportLinks, { email: e.email, onMain: () => p(`timer`) }),
                               (0, x.jsx)(`button`, {
                                 className: `history-link`,
                                 onClick: () => {
@@ -15103,6 +15156,7 @@ function ae() {
                                         `button`,
                                         {
                                           className: `dashboard-metric dashboard-metric-button`,
+                                          "aria-label": `${e}: ${t}. View entries`,
                                           onClick: () => {
                                             setDashboardCategory(`Contact: ${n}`);
                                             setDashboardEntryId(null);
@@ -15111,7 +15165,8 @@ function ae() {
                                             (0, x.jsx)(`span`, { children: e }),
                                             (0, x.jsx)(`strong`, { children: t }),
                                             (0, x.jsx)(`small`, {
-                                              children: `View entries ›`,
+                                              "aria-hidden": true,
+                                              children: `›`,
                                             }),
                                           ],
                                         },
@@ -16130,12 +16185,14 @@ function ae() {
                         g &&
                         (0, x.jsx)(`div`, {
                           className: `detail-options`,
-                          children: reachOutRequestTypes.map((e) =>
+                          children: (g === `FADAP Team` ? [`Leadership`, `FADAP Member`, `Other`] : reachOutRequestTypes).map((e) =>
                             (0, x.jsxs)(
                               `button`,
                               {
                                 onClick: () =>
-                                  Se(g, `${selectedDetail} — ${e}`, `Call`),
+                                  g === `FADAP Team`
+                                    ? (setSelectedDetail(`Reach Out Request — ${e}`), h(`contactMethod`))
+                                    : Se(g, `${selectedDetail} — ${e}`, `Call`),
                                 children: [
                                   e,
                                   (0, x.jsx)(`span`, { children: `›` }),
@@ -18079,9 +18136,10 @@ function ae() {
                                 (0, x.jsx)(`em`, { children: `optional` }),
                               ],
                             }),
-                            (0, x.jsx)(`input`, {
+                            (0, x.jsx)(m === `manual` ? `textarea` : `input`, {
                               className: `comment-input`,
-                              maxLength: 30,
+                              rows: m === `manual` ? 3 : undefined,
+                              maxLength: m === `manual` ? 250 : 30,
                               value: ae,
                               onChange: (e) => oe(e.target.value),
                               placeholder: `Add a comment…`,

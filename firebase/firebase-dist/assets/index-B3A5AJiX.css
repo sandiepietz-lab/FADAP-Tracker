@@ -2460,3 +2460,36 @@ h1 {
 .hotline-caller-group > summary::after { content: "▸"; }
 .hotline-caller-group[open] > summary::after { content: "▾"; }
 .hotline-caller-group > .detail-options { padding: 8px 12px 12px; }
+
+.member-reports { position: relative; }
+.member-reports > summary { cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: center; text-align: center; box-sizing: border-box; }
+.member-reports > summary::-webkit-details-marker { display: none; }
+.member-reports > summary:focus-visible { outline: 2px solid #24649b; outline-offset: 3px; }
+.member-reports-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; width: 230px; max-width: 80vw; padding: 8px; border: 1px solid #b6cada; border-radius: 12px; background: white; box-shadow: 0 6px 20px #17365526; }
+.member-reports-menu a { display: block; padding: 14px 12px; border-radius: 8px; color: #1e4168; font-size: 14px; font-weight: 700; text-decoration: none; }
+.member-reports-menu a:hover, .member-reports-menu a:focus-visible { background: #eaf4fb; }
+.member-reports-menu p { margin: 8px; font-size: 13px; color: #42576c; }
+.account-row .topbar-actions { flex-wrap: wrap; }
+
+/* Anchor the mobile report menu to the account row, not its narrow button. */
+@media (max-width: 600px) {
+  .account-row { position: relative; }
+  .account-row .member-reports { position: static; }
+  .account-row .member-reports-menu { left: 12px; right: 12px; top: calc(100% + 4px); width: auto; max-width: none; box-sizing: border-box; }
+  .member-reports-menu a { white-space: normal; overflow-wrap: anywhere; min-height: 44px; box-sizing: border-box; }
+}
+
+/* Compact, readable summary totals and contact counts. */
+.dashboard-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+.dashboard-metric { padding: 12px; border-radius: 10px; }
+.dashboard-metric-button { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; min-height: 56px; background: #f0f6fb; border-color: #b8cede; }
+.dashboard-metric span { color: #254564; text-transform: none; letter-spacing: normal; font-size: 14px; line-height: 1.3; }
+.dashboard-metric strong { margin: 0; font-size: 21px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.dashboard-metric-button small { margin: 0; font-size: 20px; color: #52728e; }
+.dashboard-metric-button:focus-visible { outline: 2px solid #24649b; outline-offset: 2px; }
+.dashboard-metric.total { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 12px 14px; }
+.dashboard-metric.total span { color: #fff; }
+@media (max-width: 360px) {
+  .dashboard-metric-button { padding: 10px 8px; gap: 5px; }
+  .dashboard-metric span { font-size: 13px; }
+}

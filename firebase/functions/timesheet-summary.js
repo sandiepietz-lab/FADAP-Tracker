@@ -1,6 +1,24 @@
 const DAY = 86400000;
 const serial = value => typeof value === 'number' ? Math.floor(value) : Date.parse(`${String(value).slice(0, 10)}T00:00:00Z`) / DAY + 25569;
 
+// Classification affects timesheets only; stored app activities are unchanged.
+export function isPaidTimesheetEntry(row) {
+  const activity = String(row[6] || '').trim();
+  const detail = String(row[7] || '').trim();
+  return (activity === 'Inflight Base' && /^Lounge Visit(?:$| —)/i.test(detail)) ||
+    (['Other Team Work', 'Team Tasks'].includes(activity) &&
+      /^(?:Committee Work — )?New Hire Class Presentation(?:$| —)/i.test(detail));
+}
+
+function coveredHours(intervals) {
+  let total = 0, end = 0;
+  for (const [first, last] of [...intervals].sort((a, b) => a[0] - b[0])) {
+    total += Math.max(0, last - Math.max(first, end));
+    end = Math.max(end, last);
+  }
+  return total;
+}
+
 // Calendar-day union credit, independent of the app's elapsed-shift totals.
 export function timesheetRows(entries, schedules, allowedEmails, now = new Date()) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
@@ -11,7 +29,7 @@ export function timesheetRows(entries, schedules, allowedEmails, now = new Date(
   const days = new Map();
   const get = (email, date) => {
     const key = `${email}|${date}`;
-    if (!days.has(key)) days.set(key, { email, date, minutes: 0, coverage: 0, labels: new Set(), counts: new Map() });
+    if (!days.has(key)) days.set(key, { email, date, minutes: 0, paidMinutes: 0, coverage: [], paidCoverage: [], labels: new Set(), counts: new Map() });
     return days.get(key);
   };
   const count = (day, label) => day.counts.set(label, (day.counts.get(label) || 0) + 1);
@@ -21,8 +39,11 @@ export function timesheetRows(entries, schedules, allowedEmails, now = new Date(
     if (!r[0] || seen.has(r[0]) || !allowedEmails.has(email) || !Number.isFinite(date) || date > today) continue;
     seen.add(r[0]);
     const d = get(email, date);
-    d.minutes += r[9] !== '' && r[9] != null ? Number(r[9]) || 0 : (Number(r[10]) || 0) * 60;
-    count(d, `${r[6] || 'Activity'} ${r[8] ? String(r[8]).toLowerCase() : 'activity'}`.replace(/^fadap/i, 'FADAP'));
+    const minutes = Math.max(0, r[9] !== '' && r[9] != null ? Number(r[9]) || 0 : (Number(r[10]) || 0) * 60);
+    d.minutes += minutes;
+    const paid = isPaidTimesheetEntry(r);
+    if (paid) d.paidMinutes += minutes;
+    count(d, `${paid ? String(r[7]).replace(/^Committee Work — /, '') : r[6] || 'Activity'} ${r[8] ? String(r[8]).toLowerCase() : 'activity'}`.replace(/^fadap/i, 'FADAP'));
   }
   const seenSchedules = new Set();
   for (const r of schedules.slice(1)) {
@@ -34,12 +55,15 @@ export function timesheetRows(entries, schedules, allowedEmails, now = new Date(
     if (seenSchedules.has(key)) continue;
     seenSchedules.add(key);
     if (['WOC', 'Backup', 'Regional'].includes(type)) {
-      if (type === 'WOC' && (last <= first || first > today || (first === today && Number(parts.hour) < 12))) continue;
+      const startHour = type === 'WOC' ? 12 : type === 'Regional' ? 9 : 0;
+      if (type !== 'Backup' && (last <= first || first > today || (first === today && Number(parts.hour) < startHour))) continue;
       for (let date = first; date <= Math.min(last, today); date++) {
         const d = get(email, date);
-        const hours = type === 'WOC' && (date === first || date === last) ? 12 : 24;
-        d.coverage = Math.min(24, d.coverage + hours);
-        d.labels.add(type === 'Backup' ? '24 hour backup' : type === 'WOC' ? 'WOC' : 'Regional on-call');
+        const interval = type === 'Backup' ? [0, 24] :
+          [date === first ? startHour : 0, date === last ? startHour : 24];
+        d.coverage.push(interval);
+        if (type !== 'Backup') d.paidCoverage.push(interval);
+        d.labels.add(type === 'Backup' ? '24 hour backup' : type === 'WOC' ? 'WOC' : 'Regional Coordinator');
       }
     } else if (type === 'HotlineLogin' && Date.parse(r[8]) <= now.getTime() && first <= today) {
       const d = get(email, first);
@@ -47,8 +71,17 @@ export function timesheetRows(entries, schedules, allowedEmails, now = new Date(
       count(d, 'Hotline login');
     }
   }
-  return [['Member email', 'Date', 'Hours', 'Brief note'], ...Array.from(days.values())
+  return [['Member email', 'Date', 'Hours', 'Brief note', 'Paid hours', 'Volunteer hours'], ...Array.from(days.values())
     .sort((a, b) => a.email.localeCompare(b.email) || a.date - b.date)
-    .map(d => [d.email, d.date, d.coverage || Math.round(d.minutes) / 60,
-      [...d.labels, ...Array.from(d.counts, ([label, n]) => `${n} ${label}${n > 1 ? label.endsWith('activity') ? 'ies' : 's' : ''}`.replace('activityies', 'activities'))].join(', ')])];
+    .map(d => {
+      const coverage = coveredHours(d.coverage);
+      const paidCoverage = coveredHours(d.paidCoverage);
+      const minutes = coverage ? Math.round(coverage * 60) : Math.round(d.minutes);
+      // Coverage includes other logged activity; paid coverage takes precedence
+      // over overlapping backup so no hour is counted twice.
+      const paidMinutes = Math.min(minutes, paidCoverage ? Math.round(paidCoverage * 60) : Math.round(d.paidMinutes));
+      return [d.email, d.date, minutes / 60,
+        [...d.labels, ...Array.from(d.counts, ([label, n]) => `${n} ${label}${n > 1 ? label.endsWith('activity') ? 'ies' : 's' : ''}`.replace('activityies', 'activities'))].join(', '),
+        paidMinutes / 60, (minutes - paidMinutes) / 60];
+    })];
 }

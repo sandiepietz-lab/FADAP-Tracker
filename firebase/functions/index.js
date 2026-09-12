@@ -1,4 +1,7 @@
+import { teamPaidVolunteerRequests } from "./team-paid-volunteer.js";
+import { archiveTimesheets } from "./timesheet-archive.js";
 import { timesheetRows } from "./timesheet-summary.js";
+import { timesheetLayoutRequests, needsTimesheetLayout } from "./timesheet-layout.js";
 import {
   onDocumentCreated,
   onDocumentDeleted,
@@ -278,6 +281,13 @@ async function setCurrentReportingMonth(currentMonth) {
     .map((title) => `'${title}'!B2`);
 
   await Promise.all([
+    sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: process.env.GOOGLE_SHEET_TIMESHEET_ID,
+      requestBody: {
+        valueInputOption: "USER_ENTERED",
+        data: [{ range: "'Timesheet Summary'!B2", values: [[currentMonth]] }],
+      },
+    }),
     sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: memberReportsSpreadsheetId,
       requestBody: {
@@ -1121,6 +1131,12 @@ export const archiveMonthlyGoogleSheetReports = onSchedule(
     const currentMonth = reportingMonth();
     console.log(`Starting monthly report archive for ${archivedMonth}`);
     await createMonthlyReportArchive(archivedMonth);
+    await archiveTimesheets({
+      ...getGoogleWorkspaceClients(),
+      sourceId: process.env.GOOGLE_SHEET_TIMESHEET_ID,
+      folderId: monthlyReportsFolderId,
+      month: archivedMonth,
+    });
     await setCurrentReportingMonth(currentMonth);
   },
 );
@@ -1136,7 +1152,7 @@ export const refreshTimesheetSummary = onSchedule(
     const [{ data: source }, { data: destination }] = await Promise.all([
       sheets.spreadsheets.values.batchGet({ spreadsheetId: memberReportsSpreadsheetId,
         ranges: ["'Raw Entries'!A:K", "'On Call'!A:M"], valueRenderOption: "UNFORMATTED_VALUE" }),
-      sheets.spreadsheets.get({ spreadsheetId: target, fields: "sheets(properties)" }),
+      sheets.spreadsheets.get({ spreadsheetId: target, fields: "sheets(properties,merges,conditionalFormats,developerMetadata)" }),
     ]);
     const now = new Date();
     const rows = timesheetRows(source.valueRanges[0].values || [], source.valueRanges[1].values || [],
@@ -1148,10 +1164,26 @@ export const refreshTimesheetSummary = onSchedule(
     const oldCount = dataSheet.properties.gridProperties.rowCount;
     const count = Math.max(oldCount, rows.length);
     const requests = [];
+    const visible = destination.sheets.filter(sheet => !sheet.properties.hidden);
+    if (visible.some(needsTimesheetLayout)) {
+      const members = visible.filter(sheet => sheet !== summary);
+      const quote = title => `'${title.replaceAll("'", "''")}'`;
+      const { data: layoutSource } = await sheets.spreadsheets.values.batchGet({
+        spreadsheetId: target,
+        ranges: [...members.map(sheet => `${quote(sheet.properties.title)}!A6`), "'Timesheet Summary'!A6:D40"],
+        valueRenderOption: "FORMULA",
+      });
+      const formulas = Object.fromEntries(members.map((sheet, index) =>
+        [sheet.properties.title, layoutSource.valueRanges[index].values?.[0]?.[0] || ""]));
+      requests.push(...timesheetLayoutRequests(destination.sheets, formulas,
+        layoutSource.valueRanges.at(-1).values || []));
+    }
+    if (dataSheet.properties.gridProperties.columnCount < 6) requests.unshift({ updateSheetProperties: {
+      properties: { sheetId, gridProperties: { columnCount: 6 } }, fields: "gridProperties.columnCount" } });
     if (count > oldCount) requests.push({ updateSheetProperties: {
       properties: { sheetId, gridProperties: { rowCount: count } }, fields: "gridProperties.rowCount" } });
     requests.push({ updateCells: {
-      range: { sheetId, startRowIndex: 0, endRowIndex: count, startColumnIndex: 0, endColumnIndex: 4 },
+      range: { sheetId, startRowIndex: 0, endRowIndex: count, startColumnIndex: 0, endColumnIndex: 6 },
       rows: rows.map(row => ({ values: row.map(value => ({ userEnteredValue:
         typeof value === "number" ? { numberValue: value } : { stringValue: value } })) })),
       fields: "userEnteredValue",
@@ -1174,6 +1206,14 @@ export const refreshTimesheetSummary = onSchedule(
     } });
     await withSheetsQuotaRetry(() => sheets.spreadsheets.batchUpdate({ spreadsheetId: target,
       requestBody: { requests } }), "timesheet refresh");
+    if (teamSpreadsheetId) {
+      const [{data:team}, {data:roster}] = await Promise.all([
+        sheets.spreadsheets.get({spreadsheetId:teamSpreadsheetId, fields:"sheets(properties)"}),
+        sheets.spreadsheets.values.get({spreadsheetId:teamSpreadsheetId,range:"'Team Roster'!A2:B40"}),
+      ]);
+      await withSheetsQuotaRetry(() => sheets.spreadsheets.batchUpdate({spreadsheetId:teamSpreadsheetId,
+        requestBody:{requests:teamPaidVolunteerRequests(team.sheets,rows,roster.values || [],`${stamp.date} ${stamp.time}`)}}),"team paid/volunteer refresh");
+    }
     console.log(`refreshTimesheetSummary success: dailyRows=${rows.length - 1}`);
   },
 );

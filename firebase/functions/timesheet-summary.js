@@ -35,6 +35,8 @@ export function timesheetRows(entries, schedules, allowedEmails, now = new Date(
   const count = (day, label) => day.counts.set(label, (day.counts.get(label) || 0) + 1);
   const seen = new Set();
   for (const r of entries.slice(1)) {
+    // Salaried administration is tracked as activity, outside union paid/volunteer totals.
+    if (String(r[6] || '').trim() === 'Administration') continue;
     const email = String(r[2] || '').toLowerCase(), date = serial(r[3]);
     if (!r[0] || seen.has(r[0]) || !allowedEmails.has(email) || !Number.isFinite(date) || date > today) continue;
     seen.add(r[0]);

@@ -1,6 +1,7 @@
 import { teamPaidVolunteerRequests } from "./team-paid-volunteer.js";
 import { archiveTimesheets } from "./timesheet-archive.js";
 import { migrateTeamTaskLabel } from "./team-task-sheet-label.js";
+import { wocWorkRows, wocWorkSummaryRequests } from "./woc-work-summary.js";
 import { timesheetRows } from "./timesheet-summary.js";
 import { timesheetLayoutRequests, needsTimesheetLayout } from "./timesheet-layout.js";
 import {
@@ -1217,7 +1218,12 @@ export const refreshTimesheetSummary = onSchedule(
         sheets.spreadsheets.values.get({spreadsheetId:teamSpreadsheetId,range:"'Team Roster'!A2:B40"}),
       ]);
       await withSheetsQuotaRetry(() => sheets.spreadsheets.batchUpdate({spreadsheetId:teamSpreadsheetId,
-        requestBody:{requests:teamPaidVolunteerRequests(team.sheets,rows,roster.values || [],`${stamp.date} ${stamp.time}`)}}),"team paid/volunteer refresh");
+        requestBody:{requests:[
+          ...teamPaidVolunteerRequests(team.sheets,rows,roster.values || [],`${stamp.date} ${stamp.time}`),
+          ...wocWorkSummaryRequests(team.sheets,
+            wocWorkRows(source.valueRanges[0].values || [], source.valueRanges[1].values || [],
+              new Set(Object.keys(memberSpreadsheetConfigs)), now), `${stamp.date} ${stamp.time}`),
+        ]}}),"team summary refresh");
     }
     console.log(`refreshTimesheetSummary success: dailyRows=${rows.length - 1}`);
   },

@@ -44,9 +44,32 @@ service cloud.firestore {
         ];
     }
 
+    function administrationAccess() {
+      return request.auth.token.email in [
+        "tspillersfadap@gmail.com", "peggerfadap@gmail.com",
+        "arouttenfadap@gmail.com", "spietzfadap@gmail.com"
+      ];
+    }
+
+    function administrationEntry(data) {
+      return data.get('activity', '') == 'Administration';
+    }
+
+    function validAdministration(data) {
+      return !administrationEntry(data) || (administrationAccess()
+        && data.detail in ['RSP', 'Union Meetings', 'Company Meetings']
+        && data.duration is number && data.duration > 0 && data.duration <= 86400);
+    }
+
     match /users/{userId}/entries/{entryId} {
-      allow read, create, update, delete: if approved()
-        && request.auth.uid == userId;
+      allow read: if approved() && request.auth.uid == userId;
+      allow create: if approved() && request.auth.uid == userId
+        && validAdministration(request.resource.data);
+      allow update: if approved() && request.auth.uid == userId
+        && (!administrationEntry(resource.data) || administrationAccess())
+        && validAdministration(request.resource.data);
+      allow delete: if approved() && request.auth.uid == userId
+        && (!administrationEntry(resource.data) || administrationAccess());
     }
 
     match /users/{userId}/quickNotes/{noteId} {

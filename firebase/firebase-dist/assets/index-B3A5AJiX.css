@@ -2493,3 +2493,21 @@ h1 {
   .dashboard-metric-button { padding: 10px 8px; gap: 5px; }
   .dashboard-metric span { font-size: 13px; }
 }
+
+.administration-form {display:grid;gap:16px}
+.administration-field {display:grid;gap:6px;font-weight:600}
+.administration-times {display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.administration-times input {min-width:0;width:100%;box-sizing:border-box}
+.administration-modes {display:flex;gap:8px;flex-wrap:wrap}
+.administration-modes button {padding:12px;border:1px solid #bac5d4;border-radius:12px;background:#f4f5f8;color:#19385c}
+.administration-modes button[aria-pressed=true] {background:#eee8f7;border-color:#75618d;font-weight:700}
+.administration-info {color:#53657a;font-size:.9em;margin:0}
+.administration-overnight {display:block;margin-top:12px}
+.detail-options button:disabled {opacity:.65;cursor:not-allowed}
+.administration-save-button {background:#eee8f7;color:#19385c;border:1px solid #75618d;border-radius:14px;padding:14px;font-weight:700}
+.administration-save-button:disabled {opacity:.55}
+
+.detail-options .client-stage-label, .client-stage-heading .client-stage-label {display:grid;gap:5px;color:inherit;font-size:inherit;font-weight:inherit;flex:1;min-width:0;padding-right:10px}
+.client-stage-label strong {font:inherit}
+.client-stage-label small {font-size:12px;font-weight:400;line-height:1.4;color:#536477}
+.detail-options button:active .client-stage-label small {color:inherit}

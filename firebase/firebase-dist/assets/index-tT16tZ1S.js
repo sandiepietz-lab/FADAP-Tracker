@@ -1,3 +1,4 @@
+import {canLogAdministration, createAdministrationForm} from "./administration.js";
 import { completedOnCallHours, normalizeWocSchedule } from "./on-call-progress.js";
 var e = Object.create,
   t = Object.defineProperty,
@@ -12751,6 +12752,7 @@ Error generating stack: ` +
       `Other`,
     ],
     "Other Team Work": [
+      `Administration`,
       `Media / Communications`,
       `Training / Education`,
       `Committee Work`,
@@ -13032,6 +13034,17 @@ function MemberReportLinks({ email, onMain }) {
     ],
   });
 }
+function clientStageLabel(stage) {
+  const description = {
+    "Initial Follow-up": "Follow-up after the first contact",
+    "Client Follow-up/Check-In": "Ongoing contact with an existing client",
+  }[stage];
+  return description ? (0, x.jsxs)(`span`, {className:`client-stage-label`, children:[
+    (0, x.jsx)(`strong`, {children:stage}),
+    (0, x.jsx)(`small`, {children:description}),
+  ]}) : stage;
+}
+const AdministrationForm = createAdministrationForm(b, x, centralDateTime, currentCentralInput);
 function ae() {
   let [e, t] = (0, b.useState)(null),
     [previewMode, setPreviewMode] = (0, b.useState)(!1),
@@ -13042,7 +13055,9 @@ function ae() {
     [u, d] = (0, b.useState)(0),
     [f, p] = (0, b.useState)(`timer`),
     [showStopwatch, setShowStopwatch] = (0, b.useState)(!1),
-    [m, h] = (0, b.useState)(null),
+    [m, setModalScreen] = (0, b.useState)(null),
+    navigationHistory = (0, b.useRef)([]),
+    administrationBack = (0, b.useRef)(null),
     [g, _] = (0, b.useState)(null),
     [selectedDetail, setSelectedDetail] = (0, b.useState)(``),
     [otherDetailText, setOtherDetailText] = (0, b.useState)(``),
@@ -13137,6 +13152,20 @@ function ae() {
     ),
     [he, ge] = (0, b.useState)(0),
     [_e, ve] = (0, b.useState)(5);
+  const navigationSnapshot = {
+    screen:m, category:g, detail:selectedDetail, parent:detailParent,
+    caller:hotlineCaller.current, pendingClientDetail, clientDischargeShortcut,
+    hotlineOtherParent, selectedTreatmentLevel,
+  };
+  function h(next) {
+    if (next === `detail`) setClientStageGroup(`Getting started`);
+    if (next === null) {
+      navigationHistory.current = [];
+    } else {
+      navigationHistory.current.push(navigationSnapshot);
+    }
+    setModalScreen(next);
+  }
   ((0, b.useEffect)(() => {
     let e = !1,
       n = () => {
@@ -13387,6 +13416,7 @@ function ae() {
         `Inflight Base`,
         `Union`,
         `Team Task`,
+        `Administration`,
       ],
       categories = Object.fromEntries(
         categoryNames.map((e) => [e, { name: e, seconds: 0, count: 0, entries: [] }]),
@@ -13406,15 +13436,16 @@ function ae() {
         (category.count += 1),
         category.entries.push(e));
     });
-    const taskTypes = new Map();
-    for (const entry of categories[`Team Task`].entries) {
-      const detail = entry.detail || `Unspecified type`;
-      const type = taskTypes.get(detail) || {name: detail, count: 0, seconds: 0};
-      type.count += 1;
-      type.seconds += Number(entry.duration) || 0;
-      taskTypes.set(detail, type);
+    for (const name of [`Team Task`, `Administration`]) {
+      const types = new Map();
+      for (const entry of categories[name].entries) {
+        const detail = entry.detail || `Unspecified type`;
+        const type = types.get(detail) || {name:detail,count:0,seconds:0};
+        type.count += 1; type.seconds += Number(entry.duration) || 0;
+        types.set(detail,type);
+      }
+      categories[name].types = [...types.values()];
     }
-    categories[`Team Task`].types = [...taskTypes.values()];
     return {
       entries,
       totalSeconds,
@@ -13601,7 +13632,9 @@ function ae() {
       ue(`The on-call schedule could not be deleted.`);
     }
   }
+  const userEmailForAdministration = e?.email;
   async function be(t) {
+    if (t.activity === `Administration` && !canLogAdministration(e?.email)) {ue(`Administration is limited to approved leadership.`);return !1;}
     if (previewMode) {
       window.alert(`Preview mode only — nothing was saved.`);
       return !1;
@@ -13759,6 +13792,10 @@ function ae() {
       ne[e] ? h(`detail`) : Se(e));
   }
   function chooseDetail(e, t) {
+    if (e === `Other Team Work` && t === `Administration`) {
+      if (canLogAdministration(userEmailForAdministration)) {setPendingTimer(finishingQuickNote ? {comment:finishingQuickNote.text || finishingQuickNote.comment || ``} : null); h(`administration`);}
+      return;
+    }
     if (e === `FADAP Team` && t === `Reach Out Request`) {
       setSelectedDetail(t);
       h(`reachOutRequestType`);
@@ -13797,7 +13834,7 @@ function ae() {
         setSelectedTestPositive(``),
         setSelectedPositiveSubstances([]),
         setSelectedSubstances([]),
-        h(`testPositive`))
+        h(t === `Initial Contact` && detailParent !== `Hotline` && g !== `Hotline` ? `initialContactOutcome` : `testPositive`))
       : e === `Inflight Base` && t === `Lounge Visit`
       ? (() => {
           let { date, time } = currentCentralInput();
@@ -13902,17 +13939,22 @@ function ae() {
     Se(g, detail, g === `Hotline` || detailParent === `Hotline` ? `Call` : undefined, extra);
   }
   function continueClientFlow(e) {
+    if (e === `Client Follow-up/Check-In`) {
+      if (detailParent === `Hotline` || g === `Hotline`) Se(`Client`, `${e} — Connected with client`, `Call`);
+      else h(`clientFollowUpOutcome`);
+      return;
+    }
     (e === `Initial Contact`
         ? (setSelectedTestPositive(``),
           setSelectedPositiveSubstances([]),
           setSelectedSubstances([]),
           setSupportNeedsOther(``),
-          h(`testPositive`))
+          h(detailParent === `Hotline` || g === `Hotline` ? `testPositive` : `initialContactOutcome`))
         : e === `Initial Follow-up` || e === `Relapse`
           ? (setSelectedTreatmentPlan(``),
             setSelectedTreatmentPlanTypes([]),
             setTreatmentPlanOther(``),
-            h(`treatmentPlan`))
+            h(e === `Initial Follow-up` && detailParent !== `Hotline` && g !== `Hotline` ? `initialContactOutcome` : `treatmentPlan`))
           : e === `In Treatment`
             ? (setSelectedTreatmentLevel(``), h(`treatmentLevel`))
           : e === `Client Discharge`
@@ -14010,6 +14052,10 @@ function ae() {
       h(`categoryEntry`));
   }
   function editHistoryEntry(e) {
+    if (e.activity === `Administration`) {
+      if (canLogAdministration(userEmailForAdministration)) {setPendingTimer(e);h(`administration`);}
+      return;
+    }
     let parts = Object.fromEntries(
         new Intl.DateTimeFormat(`en-US`, {
           timeZone: `America/Chicago`,
@@ -14035,108 +14081,29 @@ function ae() {
       h(`categoryEntry`));
   }
   function goBack() {
-    if (m === `testPositive` && detailParent === `Hotline` &&
-        [`Flight Attendant — Self Referral`, `Flight Attendant — MRO Question`].includes(hotlineCaller.current)) {
-      setDetailParent(null);
-      hotlineCaller.current = null;
-      _(`Hotline`);
-      setSelectedDetail(`Flight Attendant`);
-      h(`hotlineFlightAttendant`);
+    if (m === `administration` && administrationBack.current) {
+      administrationBack.current();
       return;
     }
-    if (m === `editActivity`) {
-      h(`categoryEntry`);
+    const previous = navigationHistory.current.pop();
+    if (!previous || previous.screen === null) {
+      navigationHistory.current = [];
+      setModalScreen(null);
+      _(null);
+      setPendingTimer(null);
+      setEditingEntryId(null);
+      setFinishingQuickNote(null);
       return;
     }
-    if (m === `categoryEntry`) {
-      (setPendingTimer(null),
-        setEditingEntryId(null),
-        h(previousCategoryStep || (editingEntryId ? null : `detail`)));
-      return;
-    }
-    if (m === `detail` && finishingQuickNote) {
-      (_(null), h(`finishQuickNoteCategory`));
-      return;
-    }
-    if (m === `detail` && editingEntryId && !detailParent) {
-      (_(pendingTimer?.activity || null), h(`editActivity`));
-      return;
-    }
-    if (m === `detail` && detailParent) {
-      (_(detailParent), setDetailParent(null), h(`detail`));
-      return;
-    }
-    let previous = {
-      contactMethod: g === `FADAP Team` && selectedDetail.startsWith(`Reach Out Request —`)
-        ? `reachOutRequestType`
-        : selectedDetail.includes(`SAP Completed:`)
-        ? `rspSap`
-        : selectedDetail.startsWith(`RSP —`)
-          ? `rspRecovery`
-          : selectedDetail.startsWith(`Ongoing Recovery —`)
-            ? `ongoingRecovery`
-            : `detail`,
-      otherDetail: v ? `postTimerDetail` : `detail`,
-      reachOutRequestType: `detail`,
-      hotlineFlightAttendant: `detail`,
-      hotlineCallerReason: `detail`,
-      committeeWork: `detail`,
-      committeeWorkOther: `committeeWork`,
-      hotlineSubcategoryOther: v
-        ? `postHotlineUnion`
-        : hotlineOtherParent === `Flight Attendant`
-          ? `hotlineFlightAttendant`
-          : `hotlineCallerReason`,
-      treatmentCenterDischargeLevel: `detail`,
-      treatmentCenterDischarge: `detail`,
-      dischargeFollowUpCare: clientDischargeShortcut
-        ? v
-          ? `postTreatmentCenterDischargeLevel`
-          : `treatmentCenterDischargeLevel`
-        : v
-          ? `postTreatmentCenterDischarge`
-          : `treatmentCenterDischarge`,
-      treatmentCenterClientIssues: `detail`,
-      loungeVisit: `detail`,
-      hotlineTemporaryLogin: `onCallSchedule`,
-      clientCase: `detail`,
-      testPositive: g !== `Client` && usesInitialContactWorkflow(g, selectedDetail)
-        ? `contactMethod`
-        : `detail`,
-      prescriptionFollowUp: `positiveSubstances`,
-      positiveSubstances:
-        selectedTestPositive === `No` ? `substances` : `testPositive`,
-      substances:
-        g === `FA/Co-Worker` && selectedDetail === `Family Member Needs Help`
-          ? `contactMethod`
-          : selectedTestPositive === `Yes` ? `positiveSubstances` : `testPositive`,
-      treatmentPlan:
-        usesInitialContactWorkflow(g, selectedDetail)
-          ? selectedTestPositive === `No` &&
-            selectedSubstances.includes(`Substance Abuse`)
-            ? `positiveSubstances`
-            : `substances`
-          : `detail`,
-      treatmentPlanTypes: `treatmentPlan`,
-      ongoingRecovery: `detail`,
-      rspStatus: `detail`,
-      rspCompleted: `rspStatus`,
-      backOnlineCompleted: `detail`,
-      rspRecovery: `rspCompleted`,
-      rspSap: `rspStatus`,
-      treatmentLevel: `detail`,
-      treatmentCenter: `treatmentLevel`,
-      iopTreatmentProgram: `treatmentLevel`,
-      postTimerDetail: `postTimerActivity`,
-      postReachOutRequestType: `postTimerDetail`,
-      postHotlineUnion: `postTimerDetail`,
-      postTreatmentCenterDischargeLevel: `postTimerDetail`,
-      postTreatmentCenterDischarge: `postTimerDetail`,
-      postTreatmentCenterClientIssues: `postTimerDetail`,
-    }[m];
-    previous
-      ? h(previous)
-      : (h(null), _(null), setFinishingQuickNote(null));
+    _(previous.category);
+    setSelectedDetail(previous.detail);
+    setDetailParent(previous.parent);
+    hotlineCaller.current = previous.caller;
+    setPendingClientDetail(previous.pendingClientDetail);
+    setClientDischargeShortcut(previous.clientDischargeShortcut);
+    setHotlineOtherParent(previous.hotlineOtherParent);
+    setSelectedTreatmentLevel(previous.selectedTreatmentLevel);
+    setModalScreen(previous.screen);
   }
   function saveCategorizedEntry(entry) {
     if (detailParent === `Hotline`) {
@@ -14297,6 +14264,15 @@ function ae() {
       ne[e] ? (setDetailParent(null), _(e), h(`detail`)) : Se(e));
   }
   function choosePostTimerDetail(e, t) {
+    if (e === `Client` && [`Initial Contact`, `Initial Follow-up`, `Client Follow-up/Check-In`].includes(t)) {
+      y(entry => ({...entry, activity:e, detail:t}));
+      chooseDetail(e,t);
+      return;
+    }
+    if (e === `Other Team Work` && t === `Administration`) {
+      if (canLogAdministration(userEmailForAdministration)) {setPendingTimer({...v, detail:``}); h(`administration`);}
+      return;
+    }
     if (e === `FADAP Team` && t === `Reach Out Request`) {
       y((entry) => ({ ...entry, activity: e, detail: t }));
       chooseDetail(e, t);
@@ -14488,9 +14464,6 @@ function ae() {
       ce(!1);
     }
   }
-  (0, b.useEffect)(() => {
-    if (m === `detail` && g === `Client`) setClientStageGroup(`Getting started`);
-  }, [m, g]);
   const pastCoverage = onCallSchedules
     .filter((schedule) => [`WOC`, `Backup`, `HotlineLogin`].includes(schedule.type) && getOnCallStatus(schedule, onCallNow) === `completed`)
     .sort((a, b) => new Date(b.endDateTime) - new Date(a.endDateTime));
@@ -14896,7 +14869,7 @@ function ae() {
                                     (0, x.jsxs)(`div`, {
                                       children: [
                                         (0, x.jsx)(`strong`, {
-                                          children: `Team Task`,
+                                          children: `Team Tasks / Admin`,
                                         }),
                                         (0, x.jsx)(`small`, {
                                           children: `Choose a category`,
@@ -15655,6 +15628,10 @@ function ae() {
                               ? `Finish note`
                             : m === `editActivity`
                               ? `Editing activity log entry`
+                            : m === `clientFollowUpOutcome`
+                              ? `Client Follow-up/Check-In`
+                            : m === `initialContactOutcome`
+                              ? `Client · ${selectedDetail}`
                             : m === `testPositive` ||
                                 m === `positiveSubstances` ||
                                 m === `substances` ||
@@ -15680,6 +15657,8 @@ function ae() {
                               ? `Inflight Base · Central Time`
                             : m === `hotlineTemporaryLogin`
                               ? `On-Call · Central Time · Separate from activity hours`
+                            : m === `administration`
+                              ? `Team Task`
                               : `Missed an entry?`,
                       }),
                       (0, x.jsx)(`h2`, {
@@ -15695,7 +15674,9 @@ function ae() {
                                 ? `Choose a topic`
                                 : `Choose the type`
                             : m === `contactMethod`
-                              ? `How did you connect?`
+                              ? /reach\s*out request/i.test(selectedDetail || ``)
+                                ? `How was the request made?`
+                                : `How did you connect?`
                             : m === `otherDetail`
                               ? `Please describe Other`
                             : m === `reachOutRequestType`
@@ -15704,6 +15685,8 @@ function ae() {
                               ? `What do they need?`
                             : m === `hotlineCallerReason`
                               ? `What is the call about?`
+                            : m === `administration`
+                              ? `Administration`
                             : m === `committeeWork`
                               ? `Committee Work`
                             : m === `committeeWorkOther`
@@ -15747,6 +15730,10 @@ function ae() {
                               ? `Choose a category`
                             : m === `editActivity`
                               ? `Choose a new category`
+                            : m === `clientFollowUpOutcome`
+                              ? `What happened?`
+                            : m === `initialContactOutcome`
+                              ? `Did you reach the client?`
                             : m === `testPositive`
                               ? `Test positive?`
                             : m === `clientCase`
@@ -15795,8 +15782,16 @@ function ae() {
                           children: [
                             [`Getting started`, ne.Client.slice(0, 3)],
                             [`Treatment & recovery`, ne.Client.slice(3, 9)],
-                            [`Other client activity`, ne.Client.slice(9)],
-                          ].map(([group, stages], index) => (0, x.jsxs)(`section`, {
+                            [`Client Follow-up/Check-In`, null],
+                            [`Additional Client Activity`, ne.Client.slice(10)],
+                          ].map(([group, stages], index) => stages === null
+                            ? (0, x.jsxs)(`button`, {
+                                type: `button`,
+                                className: `client-stage-heading`,
+                                onClick: () => chooseDetail(`Client`, group),
+                                children: [clientStageLabel(group), (0, x.jsx)(`span`, {"aria-hidden": true, children: `›`})],
+                              }, group)
+                            : (0, x.jsxs)(`section`, {
                             className: `client-stage-group`,
                             children: [
                               (0, x.jsxs)(`button`, {
@@ -15815,7 +15810,7 @@ function ae() {
                                   children: stages.map((stage) => (0, x.jsxs)(`button`, {
                                     type: `button`,
                                     onClick: () => chooseDetail(`Client`, stage),
-                                    children: [stage, (0, x.jsx)(`span`, { children: `›` })],
+                                    children: [clientStageLabel(stage), (0, x.jsx)(`span`, { children: `›` })],
                                   }, stage)),
                                 }),
                               }),
@@ -15868,9 +15863,10 @@ function ae() {
                             (0, x.jsxs)(
                               `button`,
                               {
+                                disabled: e === `Administration` && !canLogAdministration(userEmailForAdministration),
                                 onClick: () => chooseDetail(g, e),
                                 children: [
-                                  e === `Union` ? `TWU556` : e === `Family/Friend` ? `Family Member/Friend` : g === `Hotline` && e === `Flight Attendant` ? `FA/Co-worker` : e,
+                                  e === `Administration` ? (canLogAdministration(userEmailForAdministration) ? `Administration` : `🔒 Administration`) : e === `Union` ? `TWU556` : e === `Family/Friend` ? `Family Member/Friend` : g === `Hotline` && e === `Flight Attendant` ? `FA/Co-worker` : e,
                                   (0, x.jsx)(`span`, { children: `›` }),
                                 ],
                               },
@@ -15910,6 +15906,18 @@ function ae() {
                             }),
                           ],
                         }),
+                      m === `administration` && canLogAdministration(userEmailForAdministration) &&
+                        (0, x.jsx)(AdministrationForm, {initial:pendingTimer,busy:se,backRef:administrationBack,onSave:async entry=>{
+                          const saved = await be(entry);
+                          if (saved) {
+                            if (v?.id === entry.id) {y(null);l(null);d(0);setShowStopwatch(!1);}
+                            if (finishingQuickNote) {
+                              await o?.db.collection(`users`).doc(e.uid).collection(`quickNotes`).doc(finishingQuickNote.id).delete();
+                              setFinishingQuickNote(null);
+                            }
+                            setPendingTimer(null);h(null);_(null);
+                          }
+                        }}),
                       m === `committeeWork` &&
                         (0, x.jsx)(`div`, {
                           className: `detail-options`,
@@ -16466,6 +16474,27 @@ function ae() {
                             ),
                           ),
                         }),
+                      m === `clientFollowUpOutcome` &&
+                        (0, x.jsx)(`div`, {className:`detail-options`, children:
+                          [`Connected with client`, `Left a message for client`, `Received a message from client`].map(outcome =>
+                            (0, x.jsxs)(`button`, {type:`button`, onClick:()=>{
+                              const detail = `Client Follow-up/Check-In — ${outcome}`;
+                              setSelectedDetail(detail);
+                              setInitialContactMethod(``);
+                              if (detailParent === `Hotline`) Se(`Client`, detail, `Call`);
+                              else h(`contactMethod`);
+                            }, children:[outcome, (0,x.jsx)(`span`,{children:`›`})]}, outcome)),
+                        }),
+                      m === `initialContactOutcome` &&
+                        (0, x.jsxs)(`div`, {className:`detail-options`, children:[
+                          (0, x.jsxs)(`button`, {type:`button`, onClick:()=>h(selectedDetail === `Initial Follow-up` ? `treatmentPlan` : `testPositive`), children:[`Reached the client`, (0,x.jsx)(`span`,{children:`›`})]}),
+                          (0, x.jsxs)(`button`, {type:`button`, onClick:()=>{
+                            setSelectedTestPositive(``);
+                            setSelectedPositiveSubstances([]);
+                            setSelectedSubstances([]);
+                            Se(`Client`, `${selectedDetail} — Attempted Contact / Left Message`, `Call`);
+                          }, children:[`Attempted Contact / Left Message`, (0,x.jsx)(`span`,{children:`›`})]}),
+                        ]}),
                       m === `testPositive` &&
                         g &&
                         (0, x.jsx)(`div`, {
@@ -17404,9 +17433,10 @@ function ae() {
                             (0, x.jsxs)(
                               `button`,
                               {
+                                disabled: e === `Administration` && !canLogAdministration(userEmailForAdministration),
                                 onClick: () => choosePostTimerDetail(g, e),
                                 children: [
-                                  e,
+                                  e === `Administration` && !canLogAdministration(userEmailForAdministration) ? `🔒 Administration` : g === `Client` ? clientStageLabel(e) : e,
                                   (0, x.jsx)(`span`, { children: `›` }),
                                 ],
                               },

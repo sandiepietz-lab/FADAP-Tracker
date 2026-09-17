@@ -12715,6 +12715,7 @@ Error generating stack: ` +
       `Initial Follow-up`,
       `Awaiting Admission to Treatment`,
       `In Treatment`,
+      `Client Treatment Update / Weekly Update`,
       `Client Discharge`,
       `Ongoing Recovery`,
       `RSP`,
@@ -12724,13 +12725,14 @@ Error generating stack: ` +
       `MRO Question`,
       `Terminated`,
       `Resigned`,
+      `Updating Sales Force`,
       `Other`,
     ],
     "Treatment Center": [
       `New Client Outreach Request`,
       `Client Intake`,
       `FMLA / Medical / Paperwork`,
-      `Client Update / Weekly Update`,
+      `Client Treatment Update / Weekly Update`,
       `Client Discharge Update / Call Request`,
       `Client Issues`,
     ],
@@ -12757,6 +12759,7 @@ Error generating stack: ` +
       `Training / Education`,
       `Committee Work`,
       `Special Project`,
+      `Updated Sales Force`,
       `Other`,
     ],
     Union: [
@@ -12852,6 +12855,7 @@ Error generating stack: ` +
     `Inflight Base`,
     `Other Team Work`,
   ],
+  clientContactOutcomes = [`Connected with client`, `Left a message for client`, `Received a message from client`, `Couldn’t reach client / No message left`],
   committeeWorkTypes = [`New Hire Class Presentation`, `Other`],
   contactMethodsFor = (e) =>
     e === `Treatment Center`
@@ -12872,6 +12876,7 @@ Error generating stack: ` +
   usesContactMethod = (e, t = ``) =>
     e !== `Hotline` &&
     e !== `Quick Add` &&
+    ![`Updating Sales Force`, `Updated Sales Force`].includes(t) &&
     !(
       e === `Client` &&
       (t === `Initial Contact` || t === `Client Follow-up/Check-In`)
@@ -12886,6 +12891,10 @@ Error generating stack: ` +
       e === `Inflight Base` &&
       (t === `Lounge Visit` || t === `Checking on Materials`)
     ),
+  showsFinalContactMethod = (activity, detail = ``) =>
+    ![`Updating Sales Force`, `Updated Sales Force`].includes(detail) &&
+    ![`Other Team Work`, `Team Task`, `Team Tasks`, `Administration`, `Admin`].includes(activity) &&
+    (activity === `Client` || usesContactMethod(activity === `Flight Attendant Support` ? `FA/Co-Worker` : activity, detail)),
   re = (e) => {
     let t = new Date(e);
     return (t.setHours(0, 0, 0, 0), t);
@@ -13035,14 +13044,17 @@ function MemberReportLinks({ email, onMain }) {
   });
 }
 function clientStageLabel(stage) {
+  const label = stage === `In Treatment` ? `Admitted into Treatment` : stage;
   const description = {
+    "In Treatment": "Record the admission once, using the admission date",
+    "Client Treatment Update / Weekly Update": "Ongoing treatment updates · Treatment Center",
     "Initial Follow-up": "Follow-up after the first contact",
     "Client Follow-up/Check-In": "Ongoing contact with an existing client",
   }[stage];
   return description ? (0, x.jsxs)(`span`, {className:`client-stage-label`, children:[
-    (0, x.jsx)(`strong`, {children:stage}),
+    (0, x.jsx)(`strong`, {children:label}),
     (0, x.jsx)(`small`, {children:description}),
-  ]}) : stage;
+  ]}) : label;
 }
 const AdministrationForm = createAdministrationForm(b, x, centralDateTime, currentCentralInput);
 function ae() {
@@ -13157,11 +13169,15 @@ function ae() {
     caller:hotlineCaller.current, pendingClientDetail, clientDischargeShortcut,
     hotlineOtherParent, selectedTreatmentLevel,
   };
+  const requestMethodStep = /reach\s*out request/i.test(selectedDetail || ``);
+  (0, b.useLayoutEffect)(() => {
+    if (m === `contactMethod` && g && !requestMethodStep) chooseEntryContactMethod(undefined);
+  }, [m, g, selectedDetail]);
   function h(next) {
     if (next === `detail`) setClientStageGroup(`Getting started`);
     if (next === null) {
       navigationHistory.current = [];
-    } else {
+    } else if (!(m === `contactMethod` && !requestMethodStep)) {
       navigationHistory.current.push(navigationSnapshot);
     }
     setModalScreen(next);
@@ -13446,14 +13462,22 @@ function ae() {
       }
       categories[name].types = [...types.values()];
     }
+    const coverageHours = { WOC: 0, Backup: 0 };
+    for (const schedule of onCallSchedules) {
+      if (!(schedule.type in coverageHours)) continue;
+      coverageHours[schedule.type] += Math.max(0,
+        completedOnCallHours(schedule, onCallNow) -
+        completedOnCallHours(schedule, start.getTime() - 1));
+    }
     return {
       entries,
       totalSeconds,
       contactCounts,
+      coverageHours,
       label: labels[dashboardRange],
       categories: categoryNames.map((e) => categories[e]),
     };
-  }, [i, dashboardRange, onCallNow]);
+  }, [i, dashboardRange, onCallNow, onCallSchedules]);
   let dashboardDrilldownMethod = dashboardCategory?.startsWith(`Contact: `)
       ? dashboardCategory.slice(9)
       : null,
@@ -13792,6 +13816,12 @@ function ae() {
       ne[e] ? h(`detail`) : Se(e));
   }
   function chooseDetail(e, t) {
+    if (e === `Client` && t === `Client Treatment Update / Weekly Update`) {
+      setSelectedDetail(t);
+      _(`Treatment Center`);
+      Se(`Treatment Center`, t, detailParent === `Hotline` ? `Call` : void 0);
+      return;
+    }
     if (e === `Other Team Work` && t === `Administration`) {
       if (canLogAdministration(userEmailForAdministration)) {setPendingTimer(finishingQuickNote ? {comment:finishingQuickNote.text || finishingQuickNote.comment || ``} : null); h(`administration`);}
       return;
@@ -13907,6 +13937,78 @@ function ae() {
       .filter(Boolean).flat();
     const detail = [selectedDetail, extra.rspStatus, selections.length ? selections.join(` + `) : ``].filter(Boolean).join(` — `);
     Se(g, detail, detailParent === `Hotline` || g === `Hotline` ? `Call` : initialContactMethod || undefined, extra);
+  }
+  function chooseEntryContactMethod(e) {
+    return usesInitialContactWorkflow(g, selectedDetail)
+                                    ? (setInitialContactMethod(e),
+                                      setSelectedTestPositive(``),
+                                      setSelectedPositiveSubstances([]),
+                                      setSelectedSubstances([]),
+                                      h(g === `FA/Co-Worker` && selectedDetail === `Family Member Needs Help` ? `substances` : `testPositive`))
+                                    : Se(
+                                      g,
+                                      selectedDetail,
+                                      e,
+                                      selectedDetail ===
+                                      `Hotline Temporary Log in Request`
+                                      ? {
+                                          hotlineLoginDate,
+                                          hotlineLoginTime,
+                                          hotlineLoginEndTime,
+                                          startedAt: centralDateTime(
+                                            hotlineLoginDate,
+                                            ...hotlineLoginTime
+                                              .split(`:`)
+                                              .map(Number),
+                                          ),
+                                          duration: (() => {
+                                            let [startHours, startMinutes] =
+                                                hotlineLoginTime
+                                                  .split(`:`)
+                                                  .map(Number),
+                                              [endHours, endMinutes] =
+                                                hotlineLoginEndTime
+                                                  .split(`:`)
+                                                  .map(Number),
+                                              minutes =
+                                                endHours * 60 +
+                                                endMinutes -
+                                                (startHours * 60 +
+                                                  startMinutes);
+                                            return (
+                                              (minutes <= 0
+                                                ? minutes + 24 * 60
+                                                : minutes) * 60
+                                            );
+                                          })(),
+                                        }
+                                      : selectedDetail.startsWith(
+                                            `Client Discharge —`,
+                                          )
+                                        ? {
+                                            treatmentLevel:
+                                              selectedTreatmentLevel,
+                                          }
+                                      : selectedDetail.startsWith(
+                                            `Back Online — Completed:`,
+                                          )
+                                        ? {
+                                            completedTypes:
+                                              selectedRSPCompletedTypes,
+                                          }
+                                      : selectedDetail.startsWith(
+                                            `Ongoing Recovery —`,
+                                          )
+                                        ? {
+                                            ongoingRecoveryTypes:
+                                              selectedOngoingRecoveryTypes.map((t) =>
+                                                t === `Other`
+                                                  ? `Other: ${ongoingRecoveryOther.trim()}`
+                                                  : t,
+                                              ),
+                                          }
+                                      : {},
+                                  );
   }
   function continueWithoutOption() {
     if (m === `testPositive`) {
@@ -14161,7 +14263,8 @@ function ae() {
           }
         : {}),
       comment: categoryNote.trim().slice(0, 500),
-      ...(pendingTimer.activity === `Other Team Work` ||
+      ...((pendingTimer.activity === `Other Team Work` &&
+        pendingTimer.detail !== `Updated Sales Force`) ||
       (pendingTimer.activity === `Union` &&
         pendingTimer.detail === `Timesheets`)
         ? {}
@@ -15160,6 +15263,24 @@ function ae() {
                                     ),
                                   ],
                                 }),
+                                (0, x.jsxs)(`section`, {
+                                  className: `dashboard-coverage-totals`,
+                                  children: [
+                                    (0, x.jsx)(`h3`, { children: `Coverage hours` }),
+                                    (0, x.jsx)(`div`, {
+                                      className: `dashboard-metrics`,
+                                      children: [[`WOC`, `WOC`], [`Backup`, `24-hour backup`]].map(([type, label]) =>
+                                        (0, x.jsxs)(`div`, {
+                                          className: `dashboard-metric`,
+                                          children: [
+                                            (0, x.jsx)(`span`, { children: label }),
+                                            (0, x.jsx)(`strong`, { children: ie(dashboardView.coverageHours[type] * 3600) }),
+                                          ],
+                                        }, type)),
+                                    }),
+                                    (0, x.jsx)(`p`, { children: `Credited during this period. WOC updates after each 24-hour block; backup updates when the shift ends. Separate from activity time.` }),
+                                  ],
+                                }),
                                 (0, x.jsxs)(`div`, {
                                   className: `dashboard-categories`,
                                   children: [
@@ -15780,10 +15901,10 @@ function ae() {
                         (0, x.jsx)(`div`, {
                           className: `client-stage-groups`,
                           children: [
-                            [`Getting started`, ne.Client.slice(0, 3)],
-                            [`Treatment & recovery`, ne.Client.slice(3, 9)],
+                            [`Getting started`, ne.Client.slice(0, 4)],
+                            [`Treatment & recovery`, ne.Client.slice(4, 10)],
                             [`Client Follow-up/Check-In`, null],
-                            [`Additional Client Activity`, ne.Client.slice(10)],
+                            [`Additional Client Activity`, ne.Client.slice(11)],
                           ].map(([group, stages], index) => stages === null
                             ? (0, x.jsxs)(`button`, {
                                 type: `button`,
@@ -15866,7 +15987,7 @@ function ae() {
                                 disabled: e === `Administration` && !canLogAdministration(userEmailForAdministration),
                                 onClick: () => chooseDetail(g, e),
                                 children: [
-                                  e === `Administration` ? (canLogAdministration(userEmailForAdministration) ? `Administration` : `🔒 Administration`) : e === `Union` ? `TWU556` : e === `Family/Friend` ? `Family Member/Friend` : g === `Hotline` && e === `Flight Attendant` ? `FA/Co-worker` : e,
+                                  e === `Administration` ? (canLogAdministration(userEmailForAdministration) ? `Administration` : `🔒 Administration`) : e === `Union` ? `TWU556` : e === `Family/Friend` ? `Family Member/Friend` : g === `Hotline` && e === `Flight Attendant` ? `FA/Co-worker` : g === `Treatment Center` && e === `Client Treatment Update / Weekly Update` ? clientStageLabel(e) : e,
                                   (0, x.jsx)(`span`, { children: `›` }),
                                 ],
                               },
@@ -15983,7 +16104,7 @@ function ae() {
                             }),
                           ],
                         }),
-                      m === `contactMethod` &&
+                      m === `contactMethod` && requestMethodStep &&
                         g &&
                         (0, x.jsx)(`div`, {
                           className: `detail-options`,
@@ -15991,77 +16112,7 @@ function ae() {
                             (0, x.jsxs)(
                               `button`,
                               {
-                                onClick: () =>
-                                  usesInitialContactWorkflow(g, selectedDetail)
-                                    ? (setInitialContactMethod(e),
-                                      setSelectedTestPositive(``),
-                                      setSelectedPositiveSubstances([]),
-                                      setSelectedSubstances([]),
-                                      h(g === `FA/Co-Worker` && selectedDetail === `Family Member Needs Help` ? `substances` : `testPositive`))
-                                    : Se(
-                                      g,
-                                      selectedDetail,
-                                      e,
-                                      selectedDetail ===
-                                      `Hotline Temporary Log in Request`
-                                      ? {
-                                          hotlineLoginDate,
-                                          hotlineLoginTime,
-                                          hotlineLoginEndTime,
-                                          startedAt: centralDateTime(
-                                            hotlineLoginDate,
-                                            ...hotlineLoginTime
-                                              .split(`:`)
-                                              .map(Number),
-                                          ),
-                                          duration: (() => {
-                                            let [startHours, startMinutes] =
-                                                hotlineLoginTime
-                                                  .split(`:`)
-                                                  .map(Number),
-                                              [endHours, endMinutes] =
-                                                hotlineLoginEndTime
-                                                  .split(`:`)
-                                                  .map(Number),
-                                              minutes =
-                                                endHours * 60 +
-                                                endMinutes -
-                                                (startHours * 60 +
-                                                  startMinutes);
-                                            return (
-                                              (minutes <= 0
-                                                ? minutes + 24 * 60
-                                                : minutes) * 60
-                                            );
-                                          })(),
-                                        }
-                                      : selectedDetail.startsWith(
-                                            `Client Discharge —`,
-                                          )
-                                        ? {
-                                            treatmentLevel:
-                                              selectedTreatmentLevel,
-                                          }
-                                      : selectedDetail.startsWith(
-                                            `Back Online — Completed:`,
-                                          )
-                                        ? {
-                                            completedTypes:
-                                              selectedRSPCompletedTypes,
-                                          }
-                                      : selectedDetail.startsWith(
-                                            `Ongoing Recovery —`,
-                                          )
-                                        ? {
-                                            ongoingRecoveryTypes:
-                                              selectedOngoingRecoveryTypes.map((t) =>
-                                                t === `Other`
-                                                  ? `Other: ${ongoingRecoveryOther.trim()}`
-                                                  : t,
-                                              ),
-                                          }
-                                      : {},
-                                  ),
+                                onClick: () => chooseEntryContactMethod(e),
                                 children: [
                                   e,
                                   (0, x.jsx)(`span`, { children: `›` }),
@@ -16476,25 +16527,34 @@ function ae() {
                         }),
                       m === `clientFollowUpOutcome` &&
                         (0, x.jsx)(`div`, {className:`detail-options`, children:
-                          [`Connected with client`, `Left a message for client`, `Received a message from client`].map(outcome =>
+                          clientContactOutcomes.map(outcome =>
                             (0, x.jsxs)(`button`, {type:`button`, onClick:()=>{
                               const detail = `Client Follow-up/Check-In — ${outcome}`;
                               setSelectedDetail(detail);
                               setInitialContactMethod(``);
-                              if (detailParent === `Hotline`) Se(`Client`, detail, `Call`);
+                              if (detailParent === `Hotline` || outcome === `Couldn’t reach client / No message left`) Se(`Client`, detail, `Call`);
                               else h(`contactMethod`);
                             }, children:[outcome, (0,x.jsx)(`span`,{children:`›`})]}, outcome)),
                         }),
                       m === `initialContactOutcome` &&
-                        (0, x.jsxs)(`div`, {className:`detail-options`, children:[
-                          (0, x.jsxs)(`button`, {type:`button`, onClick:()=>h(selectedDetail === `Initial Follow-up` ? `treatmentPlan` : `testPositive`), children:[`Reached the client`, (0,x.jsx)(`span`,{children:`›`})]}),
-                          (0, x.jsxs)(`button`, {type:`button`, onClick:()=>{
-                            setSelectedTestPositive(``);
-                            setSelectedPositiveSubstances([]);
-                            setSelectedSubstances([]);
-                            Se(`Client`, `${selectedDetail} — Attempted Contact / Left Message`, `Call`);
-                          }, children:[`Attempted Contact / Left Message`, (0,x.jsx)(`span`,{children:`›`})]}),
-                        ]}),
+                        (0, x.jsx)(`div`, {className:`detail-options`, children:
+                          (selectedDetail === `Initial Contact`
+                            ? [`Reached the client`, `Attempted Contact / Left Message`]
+                            : clientContactOutcomes).map(outcome =>
+                            (0, x.jsxs)(`button`, {type:`button`, onClick:()=>{
+                              if ([`Connected with client`, `Reached the client`].includes(outcome)) {
+                                h(selectedDetail === `Initial Follow-up` ? `treatmentPlan` : `testPositive`);
+                                return;
+                              }
+                              setSelectedTestPositive(``);
+                              setSelectedPositiveSubstances([]);
+                              setSelectedSubstances([]);
+                              setInitialContactMethod(``);
+                              const detail = `${selectedDetail} — ${outcome}`;
+                              if ([`Couldn’t reach client / No message left`, `Attempted Contact / Left Message`].includes(outcome)) Se(`Client`, detail, `Call`);
+                              else {setSelectedDetail(detail); h(`contactMethod`);}
+                            }, children:[outcome, (0,x.jsx)(`span`,{children:`›`})]},outcome)),
+                        }),
                       m === `testPositive` &&
                         g &&
                         (0, x.jsx)(`div`, {
@@ -17202,6 +17262,23 @@ function ae() {
                               onChange: (e) => setCategoryNote(e.target.value),
                               placeholder: `Add notes (optional)`,
                             }),
+                            detailParent !== `Hotline` && showsFinalContactMethod(pendingTimer.activity, pendingTimer.detail) &&
+                              (0, x.jsxs)(`fieldset`, {
+                                className: `final-contact-options`,
+                                children: [
+                                  (0, x.jsx)(`legend`, {children:`Contact method (optional)`}),
+                                  ...[`Call`, `Text`, `Email`, `In-person`].map(method => (0, x.jsx)(`button`, {
+                                    type: `button`,
+                                    className: `final-contact-choice`,
+                                    "aria-pressed": pendingTimer.contactMethod === method,
+                                    onClick: () => setPendingTimer(entry => ({...entry,
+                                      contactMethod: entry.contactMethod === method ? `` : method})),
+                                    children: method,
+                                  }, method)),
+                                  pendingTimer.contactMethod && ![`Call`, `Text`, `Email`, `In-person`].includes(pendingTimer.contactMethod) &&
+                                    (0, x.jsx)(`small`, {children:`Current: ${pendingTimer.contactMethod}`}),
+                                ],
+                              }),
                             pendingTimer.activity === `Treatment Center` &&
                               pendingTimer.detail?.startsWith(`Client Discharge`) &&
                               (0, x.jsxs)(x.Fragment, {
@@ -17226,7 +17303,8 @@ function ae() {
                                   }),
                                 ],
                               }),
-                            pendingTimer.activity !== `Other Team Work` &&
+                            (pendingTimer.activity !== `Other Team Work` ||
+                              pendingTimer.detail === `Updated Sales Force`) &&
                               (pendingTimer.activity !== `Union` ||
                                 pendingTimer.detail !== `Timesheets`) &&
                               (0, x.jsxs)(x.Fragment, {
@@ -18191,6 +18269,16 @@ function ae() {
                               onChange: (e) => oe(e.target.value),
                               placeholder: `Add a comment…`,
                             }),
+                            m === `comment` && v && detailParent !== `Hotline` && showsFinalContactMethod(v.activity, v.detail) &&
+                              (0, x.jsxs)(`fieldset`, {className:`final-contact-options`,children:[
+                                (0, x.jsx)(`legend`, {children:`Contact method (optional)`}),
+                                ...[`Call`, `Text`, `Email`, `In-person`].map(method => (0, x.jsx)(`button`, {
+                                  type:`button`,className:`final-contact-choice`,
+                                  "aria-pressed":v.contactMethod === method,
+                                  onClick:()=>y(entry=>({...entry,contactMethod:entry.contactMethod === method ? `` : method})),
+                                  children:method,
+                                },method)),
+                              ]}),
                             m === `comment` &&
                               v?.activity === `Treatment Center` &&
                               v.detail?.startsWith(`Client Discharge`) &&

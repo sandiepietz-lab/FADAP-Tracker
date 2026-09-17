@@ -2511,3 +2511,15 @@ h1 {
 .client-stage-label strong {font:inherit}
 .client-stage-label small {font-size:12px;font-weight:400;line-height:1.4;color:#536477}
 .detail-options button:active .client-stage-label small {color:inherit}
+
+.final-contact-options {border:0;padding:0;margin:12px 0 18px;min-inline-size:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.35fr);gap:4px;align-items:center}
+.final-contact-options legend {font-size:13px;font-weight:600;color:#536477;margin-bottom:8px}
+.final-contact-choice {border:1px solid #a9bfd3;border-radius:12px;background:#f0f6fb;color:#193d66;padding:10px 4px;min-width:0;min-height:44px;white-space:nowrap;font-size:13px;font-weight:600;cursor:pointer}
+.final-contact-choice[aria-pressed=true] {background:#193d66;border-color:#193d66;color:white}
+.final-contact-choice:focus-visible {outline:2px solid #193d66;outline-offset:3px}
+.final-contact-options small {grid-column:1 / -1;color:#536477;font-size:12px}
+
+.dashboard-coverage-totals { margin-bottom: 20px; }
+.dashboard-coverage-totals h3 { color: #193d66; margin-bottom: 10px; }
+.dashboard-coverage-totals .dashboard-metric { background: #f0edf8; }
+.dashboard-coverage-totals p { color: #536477; font-size: 12px; line-height: 1.5; }

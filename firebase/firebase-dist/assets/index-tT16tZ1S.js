@@ -1,3 +1,4 @@
+import {isNewHirePresentation, isUpcomingActivity} from "./scheduled-activities.js";
 import {canLogAdministration, createAdministrationForm} from "./administration.js";
 import { completedOnCallHours, normalizeWocSchedule } from "./on-call-progress.js";
 var e = Object.create,
@@ -12755,11 +12756,11 @@ Error generating stack: ` +
     ],
     "Other Team Work": [
       `Administration`,
+      `Updated Sales Force`,
       `Media / Communications`,
       `Training / Education`,
       `Committee Work`,
       `Special Project`,
-      `Updated Sales Force`,
       `Other`,
     ],
     Union: [
@@ -12993,10 +12994,7 @@ Error generating stack: ` +
     );
     return `${n.year}-${n.month}-${n.day}`;
   },
-  isFutureLoungeVisit = (e, t = new Date()) =>
-    e.activity === `Inflight Base` &&
-    e.detail === `Lounge Visit` &&
-    centralDateKey(e.startedAt) > centralDateKey(t),
+  isFutureLoungeVisit = isUpcomingActivity,
   getOnCallStatus = (e, t = Date.now()) =>
     t < Date.parse(e.startDateTime)
       ? `scheduled`
@@ -13935,7 +13933,8 @@ function ae() {
     }
     const selections = [extra.ongoingRecoveryTypes, extra.rspCompletedTypes || extra.completedTypes, extra.rspRecoveryTypes, extra.dischargeFollowUpCareTypes]
       .filter(Boolean).flat();
-    const detail = [selectedDetail, extra.rspStatus, selections.length ? selections.join(` + `) : ``].filter(Boolean).join(` — `);
+    const rspStatus = extra.rspStatus && !selectedDetail.split(` — `).includes(extra.rspStatus) ? extra.rspStatus : ``;
+    const detail = [selectedDetail, rspStatus, selections.length ? selections.join(` + `) : ``].filter(Boolean).join(` — `);
     Se(g, detail, detailParent === `Hotline` || g === `Hotline` ? `Call` : initialContactMethod || undefined, extra);
   }
   function chooseEntryContactMethod(e) {
@@ -14146,10 +14145,10 @@ function ae() {
             : currentCentralInput().date,
       ),
       setCategoryHours(
-        stoppedTimerMinutes === null ? 0 : Math.floor(stoppedTimerMinutes / 60),
+        stoppedTimerMinutes === null ? (isNewHirePresentation({activity:e, detail:t}) ? 1 : 0) : Math.floor(stoppedTimerMinutes / 60),
       ),
       setCategoryMinutes(
-        stoppedTimerMinutes === null ? 5 : stoppedTimerMinutes % 60,
+        stoppedTimerMinutes === null ? (isNewHirePresentation({activity:e, detail:t}) ? 0 : 5) : stoppedTimerMinutes % 60,
       ),
       h(`categoryEntry`));
   }
@@ -15324,6 +15323,24 @@ function ae() {
                                 }),
                               ],
                             }),
+                        !dashboardCategory && i.some(entry => isNewHirePresentation(entry) && isUpcomingActivity(entry, onCallNow)) && (0, x.jsxs)(`section`, {
+                          className: `dashboard-coverage-log`,
+                          children: [
+                            (0, x.jsx)(`h3`, {children: `Upcoming presentations`}),
+                            (0, x.jsx)(`p`, {children: `Planned hours count on the event date · Central Time`}),
+                            (0, x.jsx)(`div`, {className: `on-call-list`, children: i
+                              .filter(entry => isNewHirePresentation(entry) && isUpcomingActivity(entry, onCallNow))
+                              .sort((a, b) => new Date(a.startedAt) - new Date(b.startedAt))
+                              .map(entry => (0, x.jsxs)(`article`, {children: [
+                                (0, x.jsxs)(`div`, {children: [
+                                  (0, x.jsx)(`strong`, {children: `New Hire Class Presentation`}),
+                                  (0, x.jsx)(`small`, {children: new Date(entry.startedAt).toLocaleDateString(`en-US`, {timeZone:`America/Chicago`, month:`short`, day:`numeric`, year:`numeric`})}),
+                                  (0, x.jsx)(`small`, {children: `${ie(entry.duration)} planned`}),
+                                ]}),
+                                (0, x.jsx)(`button`, {className:`dashboard-back`, onClick:()=>editHistoryEntry(entry), children:`Edit`}),
+                              ]}, entry.id))}),
+                          ],
+                        }),
                         !dashboardCategory && (0, x.jsxs)(`section`, {
                           className: `dashboard-coverage-log`,
                           children: [
@@ -15902,7 +15919,8 @@ function ae() {
                           className: `client-stage-groups`,
                           children: [
                             [`Getting started`, ne.Client.slice(0, 4)],
-                            [`Treatment & recovery`, ne.Client.slice(4, 10)],
+                            [`In Treatment and Recovery`, ne.Client.slice(4, 10).filter(stage => stage !== `RSP`)],
+                            [`RSP`, null],
                             [`Client Follow-up/Check-In`, null],
                             [`Additional Client Activity`, ne.Client.slice(11)],
                           ].map(([group, stages], index) => stages === null
@@ -16053,14 +16071,7 @@ function ae() {
                                     return;
                                   }
                                   let detail = `Committee Work — ${e}`;
-                                  v
-                                    ? (y((t) => ({
-                                        ...t,
-                                        activity: `Other Team Work`,
-                                        detail,
-                                      })),
-                                      h(`comment`))
-                                    : Se(`Other Team Work`, detail);
+                                  Se(`Other Team Work`, detail);
                                 },
                                 children: [
                                   e,
@@ -17009,6 +17020,7 @@ function ae() {
                             `Waiting to Get Accepted`,
                             `Accepted into RSP`,
                             `Waiting to Go Back Online`,
+                            `Relapse`,
                           ].map((e) =>
                             (0, x.jsxs)(
                               `button`,
@@ -17238,7 +17250,7 @@ function ae() {
                                   pendingTimer.activity === `Client` &&
                                   pendingTimer.detail?.startsWith(`In Treatment —`)
                                     ? `Admission date `
-                                    : `Date of Contact `,
+                                    : isNewHirePresentation(pendingTimer) ? `Event date ` : `Date of Contact `,
                                   (0, x.jsx)(`em`, {
                                     children: `(tap to change)`,
                                   }),

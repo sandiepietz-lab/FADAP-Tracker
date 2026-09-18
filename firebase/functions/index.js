@@ -381,7 +381,10 @@ function sheetActivityLabel(entry) {
 }
 
 function sheetDetailLabel(entry) {
-  const detail = entry.detail || "";
+  const detail = String(entry.detail || "").replace(
+    /(RSP — (Waiting to Go Back Online|Waiting to Get Accepted|Accepted into RSP))(?: — \2)+/g,
+    "$1",
+  );
   if (entry.activity !== "Hotline" || sheetActivityLabel(entry) === "Hotline") {
     return detail;
   }

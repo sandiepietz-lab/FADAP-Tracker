@@ -12736,6 +12736,7 @@ Error generating stack: ` +
       `Client Treatment Update / Weekly Update`,
       `Client Discharge Update / Call Request`,
       `Client Issues`,
+      `Treatment Center Updates`,
     ],
     "Inflight Base": [
       `Lounge Visit`,
@@ -13046,6 +13047,7 @@ function clientStageLabel(stage) {
   const description = {
     "In Treatment": "Record the admission once, using the admission date",
     "Client Treatment Update / Weekly Update": "Ongoing treatment updates · Treatment Center",
+    "Treatment Center Updates": "Not client related",
     "Initial Follow-up": "Follow-up after the first contact",
     "Client Follow-up/Check-In": "Ongoing contact with an existing client",
   }[stage];
@@ -14261,8 +14263,12 @@ function ae() {
             iopProgram: optionalTreatmentFacility,
           }
         : {}),
+      ...(pendingTimer.activity === `Treatment Center` && pendingTimer.detail?.startsWith(`Treatment Center Updates`)
+        ? {detail: `Treatment Center Updates${pendingTimer.treatmentCenter ? ` — ${pendingTimer.treatmentCenter}` : ``}`, salesforceCase: ``}
+        : {}),
       comment: categoryNote.trim().slice(0, 500),
-      ...((pendingTimer.activity === `Other Team Work` &&
+      ...((pendingTimer.activity === `Treatment Center` && pendingTimer.detail?.startsWith(`Treatment Center Updates`)) ||
+      (pendingTimer.activity === `Other Team Work` &&
         pendingTimer.detail !== `Updated Sales Force`) ||
       (pendingTimer.activity === `Union` &&
         pendingTimer.detail === `Timesheets`)
@@ -14366,6 +14372,10 @@ function ae() {
       ne[e] ? (setDetailParent(null), _(e), h(`detail`)) : Se(e));
   }
   function choosePostTimerDetail(e, t) {
+    if (e === `Treatment Center` && t === `Treatment Center Updates`) {
+      Se(e, t);
+      return;
+    }
     if (e === `Client` && [`Initial Contact`, `Initial Follow-up`, `Client Follow-up/Check-In`].includes(t)) {
       y(entry => ({...entry, activity:e, detail:t}));
       chooseDetail(e,t);
@@ -16005,7 +16015,7 @@ function ae() {
                                 disabled: e === `Administration` && !canLogAdministration(userEmailForAdministration),
                                 onClick: () => chooseDetail(g, e),
                                 children: [
-                                  e === `Administration` ? (canLogAdministration(userEmailForAdministration) ? `Administration` : `🔒 Administration`) : e === `Union` ? `TWU556` : e === `Family/Friend` ? `Family Member/Friend` : g === `Hotline` && e === `Flight Attendant` ? `FA/Co-worker` : g === `Treatment Center` && e === `Client Treatment Update / Weekly Update` ? clientStageLabel(e) : e,
+                                  e === `Administration` ? (canLogAdministration(userEmailForAdministration) ? `Administration` : `🔒 Administration`) : e === `Union` ? `TWU556` : e === `Family/Friend` ? `Family Member/Friend` : g === `Hotline` && e === `Flight Attendant` ? `FA/Co-worker` : g === `Treatment Center` && [`Client Treatment Update / Weekly Update`, `Treatment Center Updates`].includes(e) ? clientStageLabel(e) : e,
                                   (0, x.jsx)(`span`, { children: `›` }),
                                 ],
                               },
@@ -17198,6 +17208,17 @@ function ae() {
                                   }),
                                 ],
                               }),
+                            pendingTimer.activity === `Treatment Center` && pendingTimer.detail?.startsWith(`Treatment Center Updates`) &&
+                              (0, x.jsxs)(x.Fragment, {children: [
+                                (0, x.jsx)(`p`, {className:`safe-reminder`, children:`Not client related`}),
+                                (0, x.jsx)(`label`, {className:`field-label`, htmlFor:`center-update-facility`, children:`Treatment center`}),
+                                (0, x.jsxs)(`select`, {id:`center-update-facility`, className:`comment-input`,
+                                  value:pendingTimer.treatmentCenter || ``,
+                                  onChange:event=>setPendingTimer(entry=>({...entry,treatmentCenter:event.target.value})),
+                                  children:[(0, x.jsx)(`option`, {value:``,children:`Select a treatment center`}),
+                                    ...[...new Set([...inpatientTreatmentCenters,...iopTreatmentPrograms].filter(center => center !== `Other`)),`Other`].map(center=>(0,x.jsx)(`option`,{value:center,children:center},center))],
+                                }),
+                              ]}),
                             pendingTimer.activity === `Client` &&
                               [
                                 `In Treatment — Inpatient`,
@@ -17315,6 +17336,7 @@ function ae() {
                                   }),
                                 ],
                               }),
+                            !(pendingTimer.activity === `Treatment Center` && pendingTimer.detail?.startsWith(`Treatment Center Updates`)) &&
                             (pendingTimer.activity !== `Other Team Work` ||
                               pendingTimer.detail === `Updated Sales Force`) &&
                               (pendingTimer.activity !== `Union` ||
@@ -17825,7 +17847,13 @@ function ae() {
                               type: `date`,
                               value: onCallStartDate,
                               onChange: (e) => {
-                                setOnCallStartDate(e.target.value);
+                                const nextStart = e.target.value;
+                                const defaultDays = onCallType === `WOC` ? 6 : onCallType === `Regional` ? 14 : null;
+                                if (nextStart && defaultDays &&
+                                    (!onCallEndDate || onCallEndDate === addCalendarDays(onCallStartDate, defaultDays))) {
+                                  setOnCallEndDate(addCalendarDays(nextStart, defaultDays));
+                                }
+                                setOnCallStartDate(nextStart);
                                 setOnCallError(``);
                               },
                             }),

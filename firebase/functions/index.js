@@ -1,3 +1,4 @@
+import {enableTransferReport} from "./transfer-report.js";
 import { teamPaidVolunteerRequests } from "./team-paid-volunteer.js";
 import { archiveTimesheets } from "./timesheet-archive.js";
 import { migrateTeamTaskLabel } from "./team-task-sheet-label.js";
@@ -1155,6 +1156,7 @@ export const refreshTimesheetSummary = onSchedule(
     const target = process.env.GOOGLE_SHEET_TIMESHEET_ID;
     if (!target || !memberReportsSpreadsheetId) throw new Error("Timesheet source/destination is not configured");
     const sheets = getSheetsClient();
+    await enableTransferReport(sheets, teamSpreadsheetId);
     for (const id of new Set([memberReportsSpreadsheetId, teamSpreadsheetId].filter(Boolean))) {
       await migrateTeamTaskLabel(sheets, id);
     }

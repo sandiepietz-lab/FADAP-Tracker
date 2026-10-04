@@ -12640,41 +12640,8 @@ Error generating stack: ` +
   y = g(),
   b = c(u(), 1),
   x = v(),
-  ee = [
-    `sandiepietz@gmail.com`,
-    `spietzfadap@gmail.com`,
-    `tspillersfadap@gmail.com`,
-    `mitchellpietz@gmail.com`,
-    `arouttenfadap@gmail.com`,
-    `peggerfadap@gmail.com`,
-    `gwrennfadap@gmail.com`,
-    `bdumasfadap@gmail.com`,
-    `bbedillionfadap@gmail.com`,
-    `culrichfadap@gmail.com`,
-    `dmartinezfadap@gmail.com`,
-    `dkrupskifadap@gmail.com`,
-    `darnettfadap@gmail.com`,
-    `ealexanderfadap@gmail.com`,
-    `ewatermanfadap@gmail.com`,
-    `gsteinkefadap@gmail.com`,
-    `jhollingsworthfadap@gmail.com`,
-    `jwallerfadap@gmail.com`,
-    `jnevantfadap@gmail.com`,
-    `klynchfadap@gmail.com`,
-    `kbullfadap@gmail.com`,
-    `llightfadap@gmail.com`,
-    `mstidomfadap@gmail.com`,
-    `nbergrenfadap@gmail.com`,
-    `nrossfadap@gmail.com`,
-    `pspencefadap@gmail.com`,
-    `pbullardfadap@gmail.com`,
-    `rtumlinsonfadap@gmail.com`,
-    `sflowersfadap@gmail.com`,
-    `sgrumfadap@gmail.com`,
-    `shartmanfadap@gmail.com`,
-    `tdawsonfadap@gmail.com`,
-    `wforsythfadap@gmail.com`,
-  ],
+  // Temporary access pause: keep synchronized with firestore.rules.
+  ee = [`sandiepietz@gmail.com`],
   S = `fadap-google-active-v1`,
   C = {
     apiKey: `AIzaSyDqEiFd8aK35qxRawEoieA35kJ00eItGas`,
@@ -12717,6 +12684,7 @@ Error generating stack: ` +
       `Awaiting Admission to Treatment`,
       `In Treatment`,
       `Client Treatment Update / Weekly Update`,
+      `Transfer to Another Treatment Center`,
       `Client Discharge`,
       `Ongoing Recovery`,
       `RSP`,
@@ -13816,6 +13784,11 @@ function ae() {
       ne[e] ? h(`detail`) : Se(e));
   }
   function chooseDetail(e, t) {
+    if (e === `Client` && t === `Transfer to Another Treatment Center`) {
+      setSelectedDetail(t);
+      Se(e, t, detailParent === `Hotline` ? `Call` : void 0, {transferStatus:`Planned`});
+      return;
+    }
     if (e === `Client` && t === `Client Treatment Update / Weekly Update`) {
       setSelectedDetail(t);
       _(`Treatment Center`);
@@ -14266,6 +14239,10 @@ function ae() {
       ...(pendingTimer.activity === `Treatment Center` && pendingTimer.detail?.startsWith(`Treatment Center Updates`)
         ? {detail: `Treatment Center Updates${pendingTimer.treatmentCenter ? ` — ${pendingTimer.treatmentCenter}` : ``}`, salesforceCase: ``}
         : {}),
+      ...(pendingTimer.detail?.startsWith(`Transfer to Another Treatment Center`) ? {
+        detail: `Transfer to Another Treatment Center — ${pendingTimer.transferStatus || `Planned`}${pendingTimer.transferFrom ? ` — From: ${pendingTimer.transferFrom}` : ``}${pendingTimer.transferTo ? ` — To: ${pendingTimer.transferTo}` : ``}${pendingTimer.transferDate ? ` — Transfer date: ${pendingTimer.transferDate}` : ``}`,
+        treatmentCenter: pendingTimer.transferStatus === `Completed` ? pendingTimer.transferTo || `` : pendingTimer.transferFrom || ``,
+      } : {}),
       comment: categoryNote.trim().slice(0, 500),
       ...((pendingTimer.activity === `Treatment Center` && pendingTimer.detail?.startsWith(`Treatment Center Updates`)) ||
       (pendingTimer.activity === `Other Team Work` &&
@@ -14372,6 +14349,10 @@ function ae() {
       ne[e] ? (setDetailParent(null), _(e), h(`detail`)) : Se(e));
   }
   function choosePostTimerDetail(e, t) {
+    if (e === `Client` && t === `Transfer to Another Treatment Center`) {
+      Se(e, t, void 0, {transferStatus:`Planned`});
+      return;
+    }
     if (e === `Treatment Center` && t === `Treatment Center Updates`) {
       Se(e, t);
       return;
@@ -14702,7 +14683,7 @@ function ae() {
               });
   return n
     ? e
-      ? previewMode || ee.includes(e.email)
+      ? (previewMode && [`localhost`, `127.0.0.1`].includes(window.location.hostname)) || ee.includes(e.email)
         ? (0, x.jsxs)(`main`, {
             className: `app-shell`,
             children: [
@@ -15929,10 +15910,10 @@ function ae() {
                           className: `client-stage-groups`,
                           children: [
                             [`Getting started`, ne.Client.slice(0, 4)],
-                            [`In Treatment and Recovery`, ne.Client.slice(4, 10).filter(stage => stage !== `RSP`)],
+                            [`In Treatment and Recovery`, ne.Client.slice(4, 11).filter(stage => stage !== `RSP`)],
                             [`RSP`, null],
                             [`Client Follow-up/Check-In`, null],
-                            [`Additional Client Activity`, ne.Client.slice(11)],
+                            [`Additional Client Activity`, ne.Client.slice(12)],
                           ].map(([group, stages], index) => stages === null
                             ? (0, x.jsxs)(`button`, {
                                 type: `button`,
@@ -16548,7 +16529,7 @@ function ae() {
                         }),
                       m === `clientFollowUpOutcome` &&
                         (0, x.jsx)(`div`, {className:`detail-options`, children:
-                          clientContactOutcomes.map(outcome =>
+                          [...clientContactOutcomes, `Other`].map(outcome =>
                             (0, x.jsxs)(`button`, {type:`button`, onClick:()=>{
                               const detail = `Client Follow-up/Check-In — ${outcome}`;
                               setSelectedDetail(detail);
@@ -17208,9 +17189,24 @@ function ae() {
                                   }),
                                 ],
                               }),
-                            pendingTimer.activity === `Treatment Center` && pendingTimer.detail?.startsWith(`Treatment Center Updates`) &&
+                            pendingTimer.detail?.startsWith(`Transfer to Another Treatment Center`) &&
+                              (0,x.jsxs)(`div`, {className:`transfer-fields`,children:[
+                                (0,x.jsx)(`p`,{className:`safe-reminder`,children:`Track a transfer during the same treatment stay. This is not a new admission.`}),
+                                ...[[`transferFrom`,`Current treatment center`],[`transferTo`,`New treatment center`]].map(([field,label])=>(0,x.jsxs)(`div`,{children:[
+                                  (0,x.jsx)(`label`,{className:`field-label`,htmlFor:field,children:label}),
+                                  (0,x.jsxs)(`select`,{id:field,className:`comment-input`,value:pendingTimer[field] || ``,onChange:event=>setPendingTimer(entry=>({...entry,[field]:event.target.value})),children:[
+                                    (0,x.jsx)(`option`,{value:``,children:`Select a treatment center`}),
+                                    ...[...new Set([...inpatientTreatmentCenters,...iopTreatmentPrograms].filter(center=>center!==`Other`)),`Other`].map(center=>(0,x.jsx)(`option`,{value:center,children:center},center)),
+                                  ]}),
+                                ]},field)),
+                                (0,x.jsx)(`label`,{className:`field-label`,htmlFor:`transferStatus`,children:`Transfer status`}),
+                                (0,x.jsxs)(`select`,{id:`transferStatus`,className:`comment-input`,value:pendingTimer.transferStatus || `Planned`,onChange:event=>setPendingTimer(entry=>({...entry,transferStatus:event.target.value})),children:[`Planned`,`Completed`].map(status=>(0,x.jsx)(`option`,{value:status,children:status},status))}),
+                                (0,x.jsx)(`label`,{className:`field-label`,htmlFor:`transferDate`,children:pendingTimer.transferStatus===`Completed`?`Transfer date`:`Planned transfer date (if known)`}),
+                                (0,x.jsx)(`input`,{id:`transferDate`,className:`comment-input`,type:`date`,value:pendingTimer.transferDate || ``,onChange:event=>setPendingTimer(entry=>({...entry,transferDate:event.target.value}))}),
+                              ]}),
+                            pendingTimer.activity === `Treatment Center` &&
                               (0, x.jsxs)(x.Fragment, {children: [
-                                (0, x.jsx)(`p`, {className:`safe-reminder`, children:`Not client related`}),
+                                pendingTimer.detail?.startsWith(`Treatment Center Updates`) && (0, x.jsx)(`p`, {className:`safe-reminder`, children:`Not client related`}),
                                 (0, x.jsx)(`label`, {className:`field-label`, htmlFor:`center-update-facility`, children:`Treatment center`}),
                                 (0, x.jsxs)(`select`, {id:`center-update-facility`, className:`comment-input`,
                                   value:pendingTimer.treatmentCenter || ``,
@@ -18309,6 +18305,15 @@ function ae() {
                               onChange: (e) => oe(e.target.value),
                               placeholder: `Add a comment…`,
                             }),
+                            m === `comment` && v?.activity === `Treatment Center` &&
+                              (0, x.jsxs)(x.Fragment, {children:[
+                                (0,x.jsx)(`label`, {className:`field-label`,htmlFor:`timer-treatment-center`,children:`Treatment center`}),
+                                (0,x.jsxs)(`select`, {id:`timer-treatment-center`,className:`comment-input`,value:v.treatmentCenter || ``,
+                                  onChange:event=>y(entry=>({...entry,treatmentCenter:event.target.value})),
+                                  children:[(0,x.jsx)(`option`,{value:``,children:`Select a treatment center`}),
+                                    ...[...new Set([...inpatientTreatmentCenters,...iopTreatmentPrograms].filter(center=>center!==`Other`)),`Other`].map(center=>(0,x.jsx)(`option`,{value:center,children:center},center))],
+                                }),
+                              ]}),
                             m === `comment` && v && detailParent !== `Hotline` && showsFinalContactMethod(v.activity, v.detail) &&
                               (0, x.jsxs)(`fieldset`, {className:`final-contact-options`,children:[
                                 (0, x.jsx)(`legend`, {children:`Contact method (optional)`}),
@@ -18392,12 +18397,10 @@ function ae() {
                   alt: `FADAP`,
                 }),
               }),
-              (0, x.jsx)(`h1`, { children: `Not authorized` }),
+              (0, x.jsx)(`h1`, { children: `Temporarily unavailable` }),
               (0, x.jsxs)(`p`, {
                 children: [
-                  `This testing version currently allows `,
-                  ee.join(` and `),
-                  `.`,
+                  `Team Hub access is temporarily restricted. Please check back later.`,
                 ],
               }),
               (0, x.jsx)(`button`, {
@@ -18423,7 +18426,7 @@ function ae() {
             }),
             (0, x.jsxs)(`h1`, { className: `app-brand-title`, children: [(0, x.jsx)(`span`, { children: `FADAP` }), ` `, (0, x.jsx)(`span`, { children: `Team Hub` })] }),
             (0, x.jsx)(`p`, {
-              children: `Your hours will stay private and synchronize between your phone and computer.`,
+              children: `Team Hub is temporarily paused. Access is limited to the authorized owner.`,
             }),
             (0, x.jsx)(`button`, {
               className: `google-button`,
@@ -18445,7 +18448,7 @@ function ae() {
               className: `account-help`,
               children: `Google will ask which account you want to use.`,
             }),
-            (0, x.jsx)(`button`, {
+            [`localhost`, `127.0.0.1`].includes(window.location.hostname) && (0, x.jsx)(`button`, {
               className: `preview-button`,
               onClick: () => {
                 (setPreviewMode(!0),
@@ -18457,7 +18460,7 @@ function ae() {
               },
               children: `Preview App Without Signing In`,
             }),
-            (0, x.jsx)(`p`, {
+            [`localhost`, `127.0.0.1`].includes(window.location.hostname) && (0, x.jsx)(`p`, {
               className: `account-help`,
               children: `Preview mode cannot view or change real team data.`,
             }),
